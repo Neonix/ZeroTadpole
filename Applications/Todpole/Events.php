@@ -23,6 +23,8 @@ use \GatewayWorker\Lib\Db;
 
 class Events
 {
+
+
     /**
      * 当客户端连上时触发
      * @param int $client_id
@@ -30,6 +32,11 @@ class Events
     public static function onConnect($client_id)
     {
         $_SESSION['id'] = time();
+        $username = 'test';
+
+        $ret = Db::instance('db1')->select('*')->from('users')->where('id>3')->offset(5)->limit(2)->query();
+        print_r($ret);
+
         Gateway::sendToCurrentClient('{"type":"welcome","id":'.$_SESSION['id'].'}');
     }
     

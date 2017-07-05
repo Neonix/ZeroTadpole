@@ -20,12 +20,12 @@ class Db
      * $user_array = Db::instance('user')->query('SELECT `name`,`age` FROM `users` WHERE `age`>12');
      * @var array
      */
-    public static $user = array(
+    public static $db1 = array(
         'host'    => '127.0.0.1',
         'port'    => 3306,
-        'user'    => 'your_user_name',
-        'password' => 'your_password',
-        'dbname'  => 'user',
+        'user'    => 'root',
+        'password' => 'root',
+        'dbname'  => 'teou',
         'charset'    => 'utf8',
     );
 }
