@@ -5,6 +5,9 @@
  */
 
 ini_set('display_errors', 'on');
+define('debug', true);
+
+
 use Workerman\Worker;
 
 if(strpos(strtolower(PHP_OS), 'win') === 0)
