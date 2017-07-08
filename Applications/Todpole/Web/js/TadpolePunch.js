@@ -4,4 +4,16 @@
 var TadpolePunch = function(tadpole) {
     var punch = this;
 
+    punch.update = function() {
+
+    }
+
+    punch.draw = function(context) {
+
+    }
+
+    //Constructor
+    (function() {
+
+    })();
 }

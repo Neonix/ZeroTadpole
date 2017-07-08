@@ -109,7 +109,8 @@ if(!function_exists('is_mobile'))
 		
 		<script src="/js/Tadpole.js"></script>
 		<script src="/js/TadpoleTail.js"></script>
-		
+		<script src="/js/TadpolePunch.js"></script>
+
 		<script src="/js/Message.js"></script>
 		<script src="/js/WaterParticle.js"></script>
 		<script src="/js/Arrow.js"></script>
