@@ -34,8 +34,9 @@ class Events
         $_SESSION['id'] = time();
         $username = 'test';
 
-        $ret = Db::instance('db1')->select('*')->from('users')->where('id>3')->offset(5)->limit(2)->query();
-        print_r($ret);
+        //TODO prepare DB
+        //$ret = Db::instance('db1')->select('*')->from('users')->where('id>3')->offset(5)->limit(2)->query();
+        //print_r($ret);
 
         Gateway::sendToCurrentClient('{"type":"welcome","id":'.$_SESSION['id'].'}');
     }
