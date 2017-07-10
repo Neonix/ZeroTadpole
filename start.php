@@ -1,38 +1,19 @@
 <?php
 /**
- * run with command 
- * php start.php start
+ * Created by PhpStorm.
+ * User: Neonix
+ * Date: 08/07/2017
+ * Time: 03:31
  */
+use \Workerman\Worker;
 
-ini_set('display_errors', 'on');
-define('debug', true);
+define('GLOBAL_START', true);
 
-
-use Workerman\Worker;
-
-if(strpos(strtolower(PHP_OS), 'win') === 0)
-{
-    exit("start.php not support windows, please use start_for_win.bat\n");
-}
-
-if(!extension_loaded('pcntl'))
-{
-    exit("Please install pcntl extension. See http://doc3.workerman.net/install/install.html\n");
-}
-
-if(!extension_loaded('posix'))
-{
-    exit("Please install posix extension. See http://doc3.workerman.net/install/install.html\n");
-}
-
-
-define('GLOBAL_START', 1);
-
-require_once __DIR__ . '/Workerman/Autoloader.php';
-
-foreach(glob(__DIR__.'/Applications/*/start*.php') as $start_file)
-{
-    require_once $start_file;
-}
+// vendor composer, workerman
+require_once __DIR__ . '/vendor/autoload.php';
+// socket
+require_once __DIR__ . '/start_worker.php';
+// web
+require_once __DIR__ . '/start_web.php';
 
 Worker::runAll();
