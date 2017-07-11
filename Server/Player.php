@@ -108,10 +108,11 @@ class Player extends Character
 
             if($this->moveCallback) 
             {
-                $x = $message["x"];
-                $y = $message["y"];
-                $angle = $message["angle"];
-                $momentum = $message["momentum"];
+
+                $x = $message['x'];
+                $y = $message['y'];
+                $angle = $message['angle'];
+                $momentum = $message['momentum'];
                 $life = 1;
                 $name = 'guest';
                 $authorized = false;
@@ -135,7 +136,7 @@ class Player extends Character
                     $this->setPosition($x, $y, $angle, $momentum);
                     $this->clearTarget();
                     
-                    $this->broadcast(new Messages\Move($this));
+                    $this->broadcast(new Messages\Move($this), false);
                 //$this->broadcast(0);
                     //call_user_func($this->moveCallback, $this->x, $this->y);
                 //}
