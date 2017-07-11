@@ -31,7 +31,7 @@ var Tadpole = function() {
 		tadpole.y += Math.sin(tadpole.angle) * tadpole.momentum;
 
 		//Collision
-		for(id in model.tadpoles) {
+		/*for(id in model.tadpoles) {
 			console.log(Math.round(tadpole.x), model.tadpoles[id].x);
 
 
@@ -41,7 +41,7 @@ var Tadpole = function() {
 
 
 			//model.tadpoles[id].draw(context);
-		}
+		}*/
 
 
 		if(tadpole.targetX != 0 || tadpole.targetY != 0) {

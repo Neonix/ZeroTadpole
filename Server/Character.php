@@ -20,9 +20,9 @@ class Character extends Entity
     public $maxHitPoints = 100;
     public $hitPoints = 10;
     
-    public function __construct($id, $type, $kind, $x, $y)
+    public function __construct($id, $type, $kind, $x, $y, $angle, $momentum)
     {
-        parent::__construct($id, $type, $kind, $x, $y);
+        parent::__construct($id, $type, $kind, $x, $y, $angle, $momentum);
         
         $this->orientation = Utils::randomOrientation();
     }

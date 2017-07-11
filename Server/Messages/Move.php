@@ -32,6 +32,9 @@ class Move
                 $this->entity->id,
                 $this->entity->x,
                 $this->entity->y,
+                $this->entity->angle,
+                $this->entity->momentum,
+
         );
     }
 }

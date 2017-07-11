@@ -3,6 +3,7 @@
  * Created by neonix on 07/07/2017.
  */
 
+define('TYPES_MESSAGES_GUEST', -1);
 define('TYPES_MESSAGES_HELLO', 0);
 define('TYPES_MESSAGES_WELCOME', 1);
 define('TYPES_MESSAGES_SPAWN', 2);

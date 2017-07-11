@@ -6,13 +6,12 @@ var WebSocketService = function(model, webSocket) {
 	
 	this.hasConnection = false;
 
-	console.log('-WebSocketService')
+	console.log('-WebSocketService');
 	this.welcomeHandler = function(data) {
 
-		console.log(data);
 		webSocketService.hasConnection = true;
 		
-		model.userTadpole.id = data.id;
+		model.userTadpole.id = data[1];
 		model.tadpoles[data.id] = model.tadpoles[-1];
 		delete model.tadpoles[-1];
 		
@@ -38,37 +37,37 @@ var WebSocketService = function(model, webSocket) {
 	this.updateHandler = function(data) {
 		var newtp = false;
 		
-		if(!model.tadpoles[data.id]) {
+		if(!model.tadpoles[data[1]]) {
 			newtp = true;
-			model.tadpoles[data.id] = new Tadpole();
-			model.arrows[data.id] = new Arrow(model.tadpoles[data.id], model.camera);
+			model.tadpoles[data[1]] = new Tadpole();
+			model.arrows[data[1]] = new Arrow(model.tadpoles[data[1]], model.camera);
 		}
 		
-		var tadpole = model.tadpoles[data.id];
+		var tadpole = model.tadpoles[data[1]];
 		
 		if(tadpole.id == model.userTadpole.id) {			
-			tadpole.name = data.name;
+			tadpole.name = git;
 			return;
 		} else {
-			tadpole.name = data.name;
+			tadpole.name = data[1];
 		}
 		
 		if(newtp) {
-			tadpole.x = data.x;
-			tadpole.y = data.y;
+			tadpole.x = data[2];
+			tadpole.y = data[3];
 		} else {
-			tadpole.targetX = data.x;
-			tadpole.targetY = data.y;
+			tadpole.targetX = data[2];
+			tadpole.targetY = data[3];
 		}
 		
-		tadpole.angle = data.angle;
-		tadpole.momentum = data.momentum;
+		tadpole.angle = data[4];
+		tadpole.momentum = data[5];
 		
 		tadpole.timeSinceLastServerUpdate = 0;
 	}
 	
 	this.messageHandler = function(data) {
-		var tadpole = model.tadpoles[data.id];
+		var tadpole = model.tadpoles[data[1]];
 		if(!tadpole) {
 			return;
 		}
@@ -77,9 +76,9 @@ var WebSocketService = function(model, webSocket) {
 	}
 	
 	this.closedHandler = function(data) {
-		if(model.tadpoles[data.id]) {
-			delete model.tadpoles[data.id];
-			delete model.arrows[data.id];
+		if(model.tadpoles[data[1]]) {
+			delete model.tadpoles[data[1]];
+			delete model.arrows[data[1]];
 		}
 	}
 	
@@ -92,12 +91,27 @@ var WebSocketService = function(model, webSocket) {
 			}			
 		}
 	}
-	
+
+	//Selecteur de function
 	this.processMessage = function(data) {
-		var fn = webSocketService[data.type + 'Handler'];
+
+		//TODO fix
+		data = data[0];
+
+		//Welcome
+		if(data[0] == '-1')
+			var fn = webSocketService['welcomeHandler'];
+		//Movement
+		if(data[0] == '4')
+			var fn = webSocketService['updateHandler'];
+
+		//var fn = webSocketService[data.type + 'Handler'];
+
 		if (fn) {
+			console.log(fn);
 			fn(data);
 		}
+
 	}
 	
 	this.connectionClosed = function() {
@@ -120,6 +134,8 @@ var WebSocketService = function(model, webSocket) {
 				//tadpole.name,
 				tadpole.x.toFixed(1),
 				tadpole.y.toFixed(1),
+				tadpole.angle.toFixed(3),
+				tadpole.momentum.toFixed(3)
 			];
 		}
 		
@@ -143,12 +159,14 @@ var WebSocketService = function(model, webSocket) {
 	}
 	
 	this.authorize = function(token,verifier) {
+
+		console.log("authorize");
 		var sendObj = [
 			'authorize',
 			token,
 			verifier
 		];
-
+		console.log(sendObj);
 		webSocket.send(JSON.stringify(sendObj));
 	}
 }

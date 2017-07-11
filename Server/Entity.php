@@ -20,14 +20,19 @@ class Entity
     public $kind = 0;
     public $x = 0;
     public $y = 0;
+    public $angle = 0;
+    public $momentum = 0;
+    public $life = 0;
     
-    public function __construct($id, $type, $kind, $x, $y)
+    public function __construct($id, $type, $kind, $x, $y, $angle, $momentum)
     {
         $this->id = $id;
         $this->type = $type;
         $this->kind = $kind;
         $this->x = $x;
         $this->y = $y;
+        $this->angle = $angle;
+        $this->momentum = $momentum;
     }
     
     public function destroy()
@@ -60,10 +65,12 @@ class Entity
         return new Messages\Despawn($this->id);
     }
     
-    public function setPosition($x, $y)
+    public function setPosition($x, $y, $angle, $momentum)
     {
         $this->x = $x;
         $this->y = $y;
+        $this->angle = $angle;
+        $this->momentum = $momentum;
     }
     
     public function getPositionNextTo($entity)

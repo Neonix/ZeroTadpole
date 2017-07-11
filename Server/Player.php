@@ -31,7 +31,7 @@ class Player extends Character
     {
         $this->server = $worldServer;
         $this->connection = $connection;
-        parent::__construct($this->connection->id, 'player', TYPES_ENTITIES_WARRIOR, 0, 0, '');
+        parent::__construct($this->connection->id, 'player', TYPES_ENTITIES_WARRIOR, 0, 0, '',0, 0);
         $this->hasEnteredGame = false;
         $this->isDead = false;
         $this->haters = array();
@@ -42,10 +42,9 @@ class Player extends Character
         $this->connection->onClose = array($this, 'onClientclose');
         $this->connection->onWebSocketConnect = function($con)
         {
-            $con->send(json_encode(array(TYPES_MESSAGES_WELCOME)));
-            $con->send('{"type":"welcome","id":'.$this->connection->id.'}');
-
-            //Gateway::sendToCurrentClient('{"type":"welcome","id":'.$_SESSION['id'].'}');
+            //TODO FIX double tab everywhere ...
+            $con->send(json_encode(array(array(TYPES_MESSAGES_GUEST, $this->id))));
+            //$con->send('{"type":"welcome","id":'.$this->connection->id.'}');
         };
     }
     
@@ -104,12 +103,29 @@ class Player extends Character
             {
                 $x = $message[1];
                 $y = $message[2];
+                $angle = $message[3];
+                $momentum = $message[4];
+                $life = 1;
+                $name = 'guest';
+                $authorized = false;
+
+               /* 'type'     => 'update',
+                        'id'       => $_SESSION['id'],
+                        'angle'    => $message_data["angle"]+0,
+                        'momentum' => $message_data["momentum"]+0,
+                        'x'        => $message_data["x"]+0,
+                        'y'        => $message_data["y"]+0,
+                        'life'     => 1,
+                        'name'     => isset($message_data['name']) ? $message_data['name'] : 'Guest.'.$_SESSION['id'],
+                        'authorized'  => false,
+
+        */
 
                 //if($this->server->isValidPosition($x, $y)) {
 
 
 
-                    $this->setPosition($x, $y);
+                    $this->setPosition($x, $y, $angle, $momentum);
                     $this->clearTarget();
                     
                     $this->broadcast(new Messages\Move($this));
@@ -445,7 +461,7 @@ class Player extends Character
         if($this->requestposCallback) 
         {
             $pos = call_user_func($this->requestposCallback);
-            $this->setPosition($pos['x'], $pos['y']);
+            $this->setPosition($pos['x'], $pos['y'], 0,0);
         }
     }
     
