@@ -263,7 +263,7 @@ class WorldServer
         {
             $self->processGroups();
             $self->processQueues();
-        
+        /*
             if($updateCount < $regenCount) 
             {
                 $updateCount += 1;
@@ -275,7 +275,7 @@ class WorldServer
                     call_user_func($self->regenCallback);
                 }
                 $updateCount = 0;
-            }
+            }*/
         });
 
         echo $this->id." created capacity: ".$this->maxPlayers." players \n";
@@ -345,7 +345,9 @@ class WorldServer
     {
         if($player && isset($this->outgoingQueues[$player->id])) 
         {
-            $this->outgoingQueues[$player->id][] = $message->serialize();
+            //$this->outgoingQueues[$player->id][] = $message->serialize();
+            //Double tableau, je sais pas pourquoi oO ?
+            $this->outgoingQueues[$player->id] = $message->serialize();
         }
         else 
         {

@@ -28,14 +28,14 @@ class Move
     
     public function serialize()
     {
-        return array(TYPES_MESSAGES_MOVE,
+        return json_encode(array(TYPES_MESSAGES_MOVE,
                 $this->entity->id,
                 $this->entity->x,
                 $this->entity->y,
                 $this->entity->angle,
                 $this->entity->momentum,
-
-        );
+                $this->entity->name
+        ));
     }
 }
 

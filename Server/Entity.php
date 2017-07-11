@@ -23,16 +23,18 @@ class Entity
     public $angle = 0;
     public $momentum = 0;
     public $life = 0;
-    
-    public function __construct($id, $type, $kind, $x, $y, $angle, $momentum)
+    public $name = 'Guess';
+
+    public function __construct($id, $type, $kind, $x, $y, $angle, $momentum, $name)
     {
-        $this->id = $id;
-        $this->type = $type;
-        $this->kind = $kind;
-        $this->x = $x;
-        $this->y = $y;
-        $this->angle = $angle;
+        $this->id       = $id;
+        $this->type     = $type;
+        $this->kind     = $kind;
+        $this->x        = $x;
+        $this->y        = $y;
+        $this->angle    = $angle;
         $this->momentum = $momentum;
+        $this->name     = $name;
     }
     
     public function destroy()

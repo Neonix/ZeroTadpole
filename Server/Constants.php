@@ -4,11 +4,11 @@
  */
 
 define('TYPES_MESSAGES_GUEST', -1);
-define('TYPES_MESSAGES_HELLO', 0);
-define('TYPES_MESSAGES_WELCOME', 1);
+define('TYPES_MESSAGES_HELLO', 'hello');
+define('TYPES_MESSAGES_WELCOME', 'welcome');
 define('TYPES_MESSAGES_SPAWN', 2);
 define('TYPES_MESSAGES_DESPAWN', 3);
-define('TYPES_MESSAGES_MOVE', 4);
+define('TYPES_MESSAGES_MOVE', 'move');
 define('TYPES_MESSAGES_LOOTMOVE', 5);
 define('TYPES_MESSAGES_AGGRO', 6);
 define('TYPES_MESSAGES_ATTACK', 7);

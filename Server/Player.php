@@ -43,16 +43,21 @@ class Player extends Character
         $this->connection->onWebSocketConnect = function($con)
         {
             //TODO FIX double tab everywhere ...
-            $con->send(json_encode(array(array(TYPES_MESSAGES_GUEST, $this->id))));
-            //$con->send('{"type":"welcome","id":'.$this->connection->id.'}');
+            $con->send(
+                json_encode(array(
+                    "type" => TYPES_MESSAGES_WELCOME,
+                    "id" => $this->id))
+            );
         };
     }
     
     public function onClientMessage($connection, $data)
     {
+
+
         $message = json_decode($data, true);
-        $action = $message[0];
-        
+        $action = $message["type"];
+
         if(!$this->hasEnteredGame && $action !== TYPES_MESSAGES_HELLO)
         {
             $this->connection->close("Invalid handshake message: ". $data);
@@ -63,7 +68,8 @@ class Player extends Character
         
         if($action === TYPES_MESSAGES_HELLO) 
         {
-            $name = $message[1];
+            var_dump($message);
+            $name = $message["name"];
             $this->name = $name === "" ? "lorem ipsum" : $name;
             $this->kind = TYPES_ENTITIES_WARRIOR;
             //$this->equipArmor($message[2]);
@@ -75,7 +81,7 @@ class Player extends Character
             $this->server->addPlayer($this);
             call_user_func($this->server->enterCallback, $this);
             
-            $this->connection->send(json_encode(array(TYPES_MESSAGES_WELCOME, $this->id, $this->name, $this->x, $this->y, $this->hitPoints)));
+            //$this->connection->send(json_encode(array(TYPES_MESSAGES_WELCOME, $this->id, $this->name, $this->x, $this->y, $this->hitPoints)));
             $this->hasEnteredGame = true;
             $this->isDead = false;
         }
@@ -98,13 +104,14 @@ class Player extends Character
             }
         }
         else if($action == TYPES_MESSAGES_MOVE) {
+            //var_dump($message);
 
             if($this->moveCallback) 
             {
-                $x = $message[1];
-                $y = $message[2];
-                $angle = $message[3];
-                $momentum = $message[4];
+                $x = $message["x"];
+                $y = $message["y"];
+                $angle = $message["angle"];
+                $momentum = $message["momentum"];
                 $life = 1;
                 $name = 'guest';
                 $authorized = false;
@@ -129,7 +136,8 @@ class Player extends Character
                     $this->clearTarget();
                     
                     $this->broadcast(new Messages\Move($this));
-                    call_user_func($this->moveCallback, $this->x, $this->y);
+                //$this->broadcast(0);
+                    //call_user_func($this->moveCallback, $this->x, $this->y);
                 //}
             }
         }
