@@ -65,7 +65,7 @@ class Player extends Character
         {
             //var_dump($message);
             $name = $message["name"];
-            $this->name = $name === "" ? "lorem ipsum" : $name;
+            $this->name = $name === null ? "Guess".$this->id : $name;
             $this->kind = TYPES_ENTITIES_WARRIOR;
             //$this->equipArmor($message[2]);
             //$this->equipWeapon($message[3]);
@@ -117,7 +117,7 @@ class Player extends Character
                 $angle = $message['angle'];
                 $momentum = $message['momentum'];
                 $life = 1;
-                $name = $message['name'];
+                $name = $this->name;
                 $authorized = false;
 
                /* 'type'     => 'update',

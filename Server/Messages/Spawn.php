@@ -23,8 +23,12 @@ class Spawn
     
     public function serialize()
     {
-        $spawn = array(TYPES_MESSAGES_SPAWN);
-        return array_merge($spawn, $this->entity->getState());
+        $output = array(
+            'type'     => 'spawn',
+            'id'       => 0,
+        );
+
+        return $output;
     }
 }
 
