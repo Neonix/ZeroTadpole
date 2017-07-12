@@ -72,6 +72,8 @@ var Tadpole = function() {
 		}
 
 		tadpole.tail.update();
+		tadpole.punch.update();
+
 	};
 	
 	this.onclick = function(e) {
@@ -145,7 +147,9 @@ var Tadpole = function() {
 		context.arc(tadpole.x, tadpole.y, tadpole.size, tadpole.angle + Math.PI * 2.7, tadpole.angle + Math.PI * 1.3, true); 
 		
 		tadpole.tail.draw(context);
-		
+		tadpole.punch.draw(context);
+
+
 		context.closePath();
 		context.fill();
 		
@@ -176,10 +180,10 @@ var Tadpole = function() {
 		}
 		tadpole.messages.reverse();
 	};
-	
-	
+
 	// Constructor
 	(function() {
-		tadpole.tail = new TadpoleTail(tadpole);
+		tadpole.tail 	= new TadpoleTail(tadpole);
+		tadpole.punch	= new TadpolePunch(tadpole);
 	})();
 }
