@@ -48,6 +48,7 @@ class Player extends Character
                     "type" => TYPES_MESSAGES_WELCOME,
                     "id" => $this->id))
             );
+
         };
     }
     
@@ -80,7 +81,15 @@ class Player extends Character
             
             $this->server->addPlayer($this);
             call_user_func($this->server->enterCallback, $this);
-            
+
+
+            //
+           /* $this->connection->send(
+                json_encode(array(
+                "type" => TYPES_MESSAGES_HELLO,
+                "id" => $this->id))
+            );
+           */
             //$this->connection->send(json_encode(array(TYPES_MESSAGES_WELCOME, $this->id, $this->name, $this->x, $this->y, $this->hitPoints)));
             $this->hasEnteredGame = true;
             $this->isDead = false;
@@ -95,7 +104,7 @@ class Player extends Character
         }
         else if($action == TYPES_MESSAGES_CHAT) 
         {
-            $msg = trim($message[1]);
+            $msg = trim($message["message"]);
             
             // Sanitized messages may become empty. No need to broadcast empty chat messages.
             if($msg) 
@@ -114,7 +123,7 @@ class Player extends Character
                 $angle = $message['angle'];
                 $momentum = $message['momentum'];
                 $life = 1;
-                $name = 'guest';
+                $name = $message['name'];
                 $authorized = false;
 
                /* 'type'     => 'update',

@@ -29,7 +29,7 @@ var App = function(aSettings, aCanvas) {
 		
 		if(model.userTadpole.age % 6 == 0 && model.userTadpole.changed > 1 && webSocketService.hasConnection) {
 			model.userTadpole.changed = 0;
-			webSocketService.moveUpdate(model.userTadpole);
+			webSocketService.sendUpdate(model.userTadpole);
 		}
 		
 		model.camera.update(model);

@@ -18,15 +18,17 @@ var WebSocketService = function(model, webSocket) {
 			webSocketService.sendMessage('name:'+$.cookie('todpole_name'));
 		}
 
+
 		var sendObj = {
 			type: 'hello',
 			name: $.cookie('todpole_name')
 		};
 
 		webSocket.send(JSON.stringify(sendObj));
+
 	};
 
-	this.moveHandler = function(data) {
+	this.updateHandler = function(data) {
 		var newtp = false;
 
 		if(!model.tadpoles[data.id]) {
@@ -96,9 +98,9 @@ var WebSocketService = function(model, webSocket) {
 		$('#cant-connect').fadeIn(300);
 	};
 
-	this.moveUpdate = function(tadpole) {
+	this.sendUpdate = function(tadpole) {
 		var sendObj = {
-			type: 'move',
+			type: 'update',
 			x: tadpole.x.toFixed(1),
 			y: tadpole.y.toFixed(1),
 			angle: tadpole.angle.toFixed(3),

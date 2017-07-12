@@ -15,7 +15,6 @@ if(!function_exists('is_mobile'))
 {
     function is_mobile()
     {
-        //php判断客户端是否为手机
         $agent = $_SERVER['HTTP_USER_AGENT'];
         return (strpos($agent,"NetFront") || strpos($agent,"iPhone") || strpos($agent,"MIDP-2.0") || strpos($agent,"Opera Mini") || strpos($agent,"UCWEB") || strpos($agent,"Android") || strpos($agent,"Windows CE") || strpos($agent,"SymbianOS"));
     }

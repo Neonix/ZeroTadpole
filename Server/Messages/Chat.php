@@ -27,10 +27,17 @@ class Chat
     
     public function serialize()
     {
-        return array(TYPES_MESSAGES_CHAT, 
-                $this->playerId, 
-                $this->message
+        return
+
+
+        $str = str_replace('\\', '',
+            array(
+                'type'      => TYPES_MESSAGES_CHAT,
+                'id'        => $this->playerId,
+                'message'   =>$this->message
+            )
         );
+        return $str;
     }
 }
 
