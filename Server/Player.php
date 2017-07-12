@@ -1,15 +1,6 @@
-<?php 
+<?php
 /**
- * This file is part of workerman.
- *
- * Licensed under The MIT License
- * For full copyright and license information, please see the MIT-LICENSE.txt
- * Redistributions of files must retain the above copyright notice.
- *
- * @author walkor<walkor@workerman.net>
- * @copyright walkor<walkor@workerman.net>
- * @link http://www.workerman.net/
- * @license http://www.opensource.org/licenses/mit-license.php MIT License
+ * Created by neonix on 06/07/2017.
  */
 namespace Server;
 use \Workerman\Lib\Timer;
@@ -69,7 +60,7 @@ class Player extends Character
         
         if($action === TYPES_MESSAGES_HELLO) 
         {
-            var_dump($message);
+            //var_dump($message);
             $name = $message["name"];
             $this->name = $name === "" ? "lorem ipsum" : $name;
             $this->kind = TYPES_ENTITIES_WARRIOR;
@@ -310,6 +301,10 @@ class Player extends Character
         {
             call_user_func($this->exitCallback);
         }
+
+
+
+
     }
     
     public function firepotionTimeoutCallback()
