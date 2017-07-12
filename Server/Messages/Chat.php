@@ -30,13 +30,11 @@ class Chat
         return
 
 
-        $str = str_replace('\\', '',
-            array(
+            $output = array(
                 'type'      => TYPES_MESSAGES_CHAT,
                 'id'        => $this->playerId,
                 'message'   =>$this->message
-            )
-        );
+            );
         return $str;
     }
 }
