@@ -5,6 +5,7 @@
 namespace Server;
 use \Workerman\Worker;
 use \Workerman\Lib\Timer;
+use \Server\Config\Db;
 
 require_once __DIR__ . '/Constants.php';
 
@@ -439,6 +440,8 @@ class WorldServer
     
     public function removePlayer($player) 
     {
+
+        $player->save();
         $player->broadcast($player->despawn());
         $this->removeEntity($player);
         unset($this->players[$player->id], $this->outgoingQueues[$player->id]);

@@ -6,7 +6,7 @@
  * Time: 01:46
  */
 
-namespace Config;
+namespace Server\Config;
 /**
  * mysql配置
  * @author walkor

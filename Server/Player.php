@@ -4,6 +4,9 @@
  */
 namespace Server;
 use \Workerman\Lib\Timer;
+use \Workerman\Lib\Gateway;
+use \Server\Lib\Db;
+
 
 class Player extends Character
 {
@@ -494,5 +497,11 @@ class Player extends Character
     {
         $this->connection->send('timeout');
         $this->connection->close('Player was idle for too long');
+    }
+
+    public function save()
+    {
+        //$ret = Db::instance('db1')->select('*')->from('users')->where('id>3')->offset(5)->limit(2)->query();
+        //print_r($ret);
     }
 }
