@@ -1,6 +1,6 @@
 var settings = new Settings();
 
-var debug = true;
+var debug = false;
 var isStatsOn = true;
 
 var authWindow;

@@ -3,6 +3,7 @@
  */
 var TadpolePunch = function(tadpole) {
     var punch = this;
+    var tadpole = tadpole;
 
     punch.update = function() {
 
