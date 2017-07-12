@@ -72,7 +72,7 @@ var Tadpole = function() {
 		}
 
 		tadpole.tail.update();
-		tadpole.punch.update();
+		//tadpole.punch.update();
 
 	};
 	
@@ -147,7 +147,7 @@ var Tadpole = function() {
 		context.arc(tadpole.x, tadpole.y, tadpole.size, tadpole.angle + Math.PI * 2.7, tadpole.angle + Math.PI * 1.3, true); 
 		
 		tadpole.tail.draw(context);
-		tadpole.punch.draw(context);
+
 
 
 		context.closePath();
@@ -155,7 +155,7 @@ var Tadpole = function() {
 		
 		context.shadowBlur = 0;
 		context.shadowColor   = '';
-		
+		tadpole.punch.draw(context);
 		drawName(context);
 		drawMessages(context);
 	};
@@ -163,7 +163,7 @@ var Tadpole = function() {
 	var isAuthorized = function() {
 		return tadpole.name.charAt('0') == "@";
 	};
-	
+
 	var drawName = function(context) {
 		var opacity = Math.max(Math.min(20 / Math.max(tadpole.timeSinceLastServerUpdate-300,1),1),.2).toFixed(3);
 		context.fillStyle = 'rgba(226,219,226,'+opacity+')';
