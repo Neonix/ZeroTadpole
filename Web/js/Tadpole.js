@@ -180,6 +180,11 @@ var Tadpole = function() {
 		tadpole.messages.reverse();
 	};
 
+	//Surement ici :p Action du Punch
+	var punchingAction = function(context) {
+
+	}
+
 	// Constructor
 	(function() {
 		tadpole.tail 	= new TadpoleTail(tadpole);
