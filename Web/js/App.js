@@ -96,7 +96,6 @@ var App = function(aSettings, aCanvas) {
 	};
 	
 	app.onSocketMessage = function(e) {
-		console.log('onSocketMessage');
 		try {
 			var data = JSON.parse(e.data);
 			webSocketService.processMessage(data);
