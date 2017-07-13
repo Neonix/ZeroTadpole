@@ -144,11 +144,8 @@ var Tadpole = function() {
 		
 		// Draw circle
 		context.beginPath();
-		context.arc(tadpole.x, tadpole.y, tadpole.size, tadpole.angle + Math.PI * 2.7, tadpole.angle + Math.PI * 1.3, true); 
-		
+		context.arc(tadpole.x, tadpole.y, tadpole.size, tadpole.angle + Math.PI * 2.7, tadpole.angle + Math.PI * 1.3, true);
 		tadpole.tail.draw(context);
-
-
 
 		context.closePath();
 		context.fill();
