@@ -2,16 +2,49 @@
  * Created by neonix on 07/07/2017.
  */
 var TadpolePunch = function(tadpole) {
+
     var punch = this;
-    var tadpole = tadpole;
     punch.joints = [];
 
+    var tadpole = tadpole;
+    var jointSpacing = 1.4;
+    var animationRate = 0;
+
+
     punch.update = function() {
+        animationRate += (.2 + tadpole.momentum / 10);
+
 
         //console.log('update');
         //console.log(tadpole.change);
         //TODO
         //console.log(tadpole.changed);
+
+    /*
+        for(var i = 0, len = punch.joints.length; i < len; i++) {
+            var punchJoint = punch.joints[i];
+            var parentJoint = punch.joints[i-1] || tadpole;
+            var anglediff = (parentJoint.angle - punchJoint.angle);
+
+            while(anglediff < -Math.PI) {
+                anglediff += Math.PI * 2;
+            }
+            while(anglediff > Math.PI) {
+                anglediff -= Math.PI * 2;
+            }
+            punchJoint.angle += anglediff * (jointSpacing * 3 + (Math.min(tadpole.momentum / 2, Math.PI * 1.8))) / 8;
+            punchJoint.angle += Math.cos(animationRate - (i / 3)) * ((tadpole.momentum + .3) / 40);
+
+            if(i == 0) {
+                punchJoint.x = parentJoint.x + Math.cos(punchJoint.angle + Math.PI) * 5;
+                punchJoint.y = parentJoint.y + Math.sin(punchJoint.angle + Math.PI) * 5;
+            } else {
+                punchJoint.x = parentJoint.x + Math.cos(punchJoint.angle + Math.PI) * jointSpacing;
+                punchJoint.y = parentJoint.y + Math.sin(punchJoint.angle + Math.PI) * jointSpacing;
+            }
+        }
+
+        */
     }
 
     punch.draw = function(context) {
@@ -33,6 +66,8 @@ var TadpolePunch = function(tadpole) {
 
         //Jonction de l'annimation entre les 2 trames pour eviter les sacades
         for(var i = 0, len = punch.joints.length; i < len; i++) {
+            var punchJoint = punch.joints[i];
+
             //TODO
             //console.log(tadpole.changed);
         }
