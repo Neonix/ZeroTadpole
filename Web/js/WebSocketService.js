@@ -96,6 +96,11 @@ var WebSocketService = function(model, webSocket) {
 	this.connectionClosed = function() {
 		webSocketService.hasConnection = false;
 		$('#cant-connect').fadeIn(300);
+		setTimeout(function(){
+			//TODO reconnexion automatique
+			//var fn = webSocketService['welcomeHandler'];
+			//fn("{id: "+ model.userTadpole.id +"}");
+		}, 3000);
 	};
 
 	this.sendUpdate = function(tadpole) {
