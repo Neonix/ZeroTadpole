@@ -155,6 +155,7 @@ var Tadpole = function() {
 		
 		context.shadowBlur = 0;
 		context.shadowColor   = '';
+
 		tadpole.punch.draw(context);
 		drawName(context);
 		drawMessages(context);
@@ -167,10 +168,11 @@ var Tadpole = function() {
 	var drawName = function(context) {
 		var opacity = Math.max(Math.min(20 / Math.max(tadpole.timeSinceLastServerUpdate-300,1),1),.2).toFixed(3);
 		context.fillStyle = 'rgba(226,219,226,'+opacity+')';
+		context.shadowColor   = 'rgba(255, 255, 255, '+opacity*0.7+')';
 		context.font = 7 + "px 'proxima-nova-1','proxima-nova-2', arial, sans-serif";
 		context.textBaseline = 'hanging';
 		var width = context.measureText(tadpole.name).width;
-		context.fillText(tadpole.name, tadpole.x - width/2, tadpole.y + 8);
+		context.fillText(tadpole.name, tadpole.x - width/2, tadpole.y - 20);
 	}
 	
 	var drawMessages = function(context) {
