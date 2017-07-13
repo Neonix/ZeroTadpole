@@ -1,4 +1,4 @@
-Todpole
+ZeroTadpole
 =================
 
 [DEMO](http://lovewow.fr:8383)
@@ -14,7 +14,7 @@ Todpole
 
 ## Linux OsX
     
-1. git clone https://github.com/Neonix/tadpole.git
+1. git clone https://github.com/Neonix/ZeroTadpole.git
 2. composer install 
 3. php start.php start
 4. http://ip:8383 
