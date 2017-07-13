@@ -72,7 +72,7 @@ var Tadpole = function() {
 		}
 
 		tadpole.tail.update();
-		//tadpole.punch.update();
+		tadpole.punch.update();
 
 	};
 	

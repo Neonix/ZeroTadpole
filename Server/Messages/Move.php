@@ -29,10 +29,10 @@ class Move
         $output = array(
             "type"      => TYPES_MESSAGES_MOVE,
             'id'        => (int) $this->entity->id + 0,
-            'x'         => (int) $this->entity->x + 0,
-            'y'         => (int) $this->entity->y + 0,
-            'angle'     => (int) $this->entity->angle + 0,
-            'momentum'  => (int) $this->entity->momentum + 0,
+            'x'         => (float) $this->entity->x,
+            'y'         => (float) $this->entity->y,
+            'angle'     => (float) $this->entity->angle,
+            'momentum'  => (float) $this->entity->momentum,
             'name'      => $this->entity->name,
             'life'      => 1,
             'authorized'=> false

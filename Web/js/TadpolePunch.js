@@ -8,6 +8,10 @@ var TadpolePunch = function(tadpole) {
 
     punch.update = function() {
 
+        //console.log('update');
+        //console.log(tadpole.change);
+        //TODO
+        //console.log(tadpole.changed);
     }
 
     punch.draw = function(context) {
@@ -18,13 +22,21 @@ var TadpolePunch = function(tadpole) {
 
         //var x1 = tadpole.x + Math.cos(tadpole.angle + Math.PI * 1.5) * tadpole.size * espacement + décalage;
         //var x1 = tadpole.x + Math.cos(tadpole.angle + Math.PI * 1.5) * tadpole.size * 2 + 2;
-        var x1 = tadpole.x + Math.cos(tadpole.angle + Math.PI * 1.5) * tadpole.size * 2 + 2;
-        var y1 = tadpole.y + Math.sin(tadpole.angle + Math.PI * 1.5) * tadpole.size * 2 + 2;
+        var x1 = tadpole.x + Math.cos(tadpole.angle + Math.PI * 1.5) * tadpole.size * 1.5 + 1.5;
+        var y1 = tadpole.y + Math.sin(tadpole.angle + Math.PI * 1.5) * tadpole.size * 1.5 + 1.5;
 
-        var x2 = tadpole.x + Math.cos(tadpole.angle + Math.PI / 2) * tadpole.size * 2 + 2;
-        var y2 = tadpole.y + Math.sin(tadpole.angle + Math.PI / 2) * tadpole.size * 2 + 2;
+        var x2 = tadpole.x + Math.cos(tadpole.angle + Math.PI / 2) * tadpole.size * 1.5 + 1.5;
+        var y2 = tadpole.y + Math.sin(tadpole.angle + Math.PI / 2) * tadpole.size * 1.5 + 1.5;
         path[0].push({x: x1, y: y1});
         path[1].push({x: x2, y: y2});
+
+
+        //Jonction de l'annimation entre les 2 trames pour eviter les sacades
+        for(var i = 0, len = punch.joints.length; i < len; i++) {
+            //TODO
+            //console.log(tadpole.changed);
+        }
+
 
 
         //fist 1
@@ -50,8 +62,17 @@ var TadpolePunch = function(tadpole) {
         context.closePath();
         context.fill();
 
-    }
+    };
 
     //Constructor
-
+    (function() {
+        console.log("Constructor")
+        for(var i = 0; i < 15; i++) {
+            punch.joints.push({
+                x: 0,
+                y: 0,
+                angle: Math.PI*2,
+            })
+        }
+    })();
 }
