@@ -183,7 +183,7 @@ var Tadpole = function() {
 	//Surement ici :p Action du Punch
 	var punchingAction = function(context) {
 
-	}
+	};
 
 	// Constructor
 	(function() {
