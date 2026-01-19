@@ -18,24 +18,25 @@ use Server\Utils;
 class Chat
 {
     public $playerId = 0;
+    public $playerName = '';
+    public $playerColor = '';
     public $message = null;
     public function __construct($player, $message)
     {
         $this->playerId = $player->id;
-        $this->message = $message ;
+        $this->playerName = $player->name;
+        $this->playerColor = $player->color;
+        $this->message = $message;
     }
     
     public function serialize()
     {
-        return
-
-
-            $output = array(
-                'type'      => TYPES_MESSAGES_CHAT,
-                'id'        => $this->playerId,
-                'message'   =>$this->message
-            );
-        return $str;
+        return array(
+            'type' => TYPES_MESSAGES_CHAT,
+            'id' => $this->playerId,
+            'name' => $this->playerName,
+            'color' => $this->playerColor,
+            'message' => $this->message
+        );
     }
 }
-

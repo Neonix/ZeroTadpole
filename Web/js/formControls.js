@@ -4,6 +4,10 @@
 	
 	$.fn.initChat = function() {
 		var input = $(this);
+		if (input.data('chat-initialized')) {
+			return;
+		}
+		input.data('chat-initialized', true);
 		var chatText = $("#chatText");
 		var body = $('body');
 		var hidden = true;
@@ -16,8 +20,9 @@
 			if (input.val().length > 0) {
 				messageHistory.push(input.val());
 				messagePointer = messageHistory.length;
-				if (typeof app !== 'undefined' && app) {
-					app.sendMessage(input.val());
+				var appInstance = window.app || (typeof app !== 'undefined' ? app : null);
+				if (appInstance) {
+					appInstance.sendMessage(input.val());
 				}
 			}
 			closechat();
@@ -141,6 +146,6 @@
 	}
 	
 	$(function() {
-		//$('#chat').initChat();
+		$('#chat').initChat();
 	});
 })(jQuery);

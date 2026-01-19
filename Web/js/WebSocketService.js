@@ -102,12 +102,19 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 
 	this.messageHandler = function(data) {
 		var tadpole = model.tadpoles[data.id];
-		if(!tadpole) {
-			return;
+		if (tadpole) {
+			tadpole.timeSinceLastServerUpdate = 0;
+			if (data.name) {
+				tadpole.name = data.name;
+			}
+			if (data.color) {
+				tadpole.color = data.color;
+			}
+			tadpole.messages.push(new Message(data.message));
 		}
-		tadpole.timeSinceLastServerUpdate = 0;
-		tadpole.messages.push(new Message(data.message));
-		appendChatLine(tadpole.name || ('Joueur ' + data.id), data.message, tadpole.color);
+		var displayName = data.name || (tadpole ? tadpole.name : '') || ('Joueur ' + data.id);
+		var displayColor = data.color || (tadpole ? tadpole.color : null);
+		appendChatLine(displayName, data.message, displayColor);
 	}
 
 	this.privateHandler = function(data) {

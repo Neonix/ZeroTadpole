@@ -28,6 +28,7 @@ var runLoop = function() {
 var initApp = function() {
 	if (app!=null) { return; }
 	app = new App(settings, document.getElementById('canvas'));
+	window.app = app;
 
 	setAppHeight();
 	window.addEventListener('resize', handleResize, false);
@@ -253,6 +254,21 @@ $(function() {
 			chatInput.focus();
 		} else {
 			chatInput.blur();
+		}
+	});
+
+	$(document).on('keydown', function(e) {
+		if (e.defaultPrevented || $('body').hasClass('chat-open')) {
+			return;
+		}
+		var targetTag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
+		if (targetTag === 'input' || targetTag === 'textarea') {
+			return;
+		}
+		if (e.key === 'Enter' || e.key === 't' || e.key === 'T') {
+			e.preventDefault();
+			$('body').addClass('chat-open');
+			chatInput.focus();
 		}
 	});
 
