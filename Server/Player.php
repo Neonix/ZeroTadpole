@@ -62,7 +62,15 @@ class Player extends Character
 
 
         $message = json_decode($data, true);
-        $action = $message["type"];
+        if (!is_array($message)) {
+            $this->connection->close("Invalid message: ". $data);
+            return;
+        }
+        $action = $message["type"] ?? null;
+        if ($action === null) {
+            $this->connection->close("Invalid message type: ". $data);
+            return;
+        }
 
         if(!$this->hasEnteredGame && $action !== TYPES_MESSAGES_HELLO)
         {
@@ -75,10 +83,10 @@ class Player extends Character
         if($action === TYPES_MESSAGES_HELLO) 
         {
             //var_dump($message);
-            $name = $message["name"];
-            $color = isset($message["color"]) ? $message["color"] : null;
-            $this->name = $name === null ? "Guess".$this->id : $name;
-            if($color) {
+            $name = isset($message["name"]) ? trim((string) $message["name"]) : null;
+            $color = isset($message["color"]) ? trim((string) $message["color"]) : null;
+            $this->name = $name === null || $name === '' ? "Guest".$this->id : $name;
+            if($color !== null && $color !== '') {
                 $this->color = $color;
             }
             $this->kind = TYPES_ENTITIES_WARRIOR;
@@ -109,8 +117,8 @@ class Player extends Character
         }
         else if($action === 'private') {
             $targetId = isset($message["target"]) ? (int)$message["target"] : null;
-            $msg = trim($message["message"]);
-            if($targetId && $msg) {
+            $msg = isset($message["message"]) ? trim((string) $message["message"]) : '';
+            if($targetId && $msg !== '') {
                 $this->server->sendPrivateMessage($this, $targetId, $msg);
             }
         }
@@ -119,10 +127,10 @@ class Player extends Character
         }
         else if($action == TYPES_MESSAGES_CHAT) 
         {
-            $msg = trim($message["message"]);
+            $msg = isset($message["message"]) ? trim((string) $message["message"]) : '';
             
             // Sanitized messages may become empty. No need to broadcast empty chat messages.
-            if($msg) 
+            if($msg !== '') 
             {
                 $this->broadcastToZone(new Messages\Chat($this, $msg), false);
             }
@@ -132,11 +140,13 @@ class Player extends Character
 
             if($this->moveCallback) 
             {
-
-                $x = $message['x'];
-                $y = $message['y'];
-                $angle = $message['angle'];
-                $momentum = $message['momentum'];
+                if (!isset($message['x'], $message['y'], $message['angle'], $message['momentum'])) {
+                    return;
+                }
+                $x = (float) $message['x'];
+                $y = (float) $message['y'];
+                $angle = (float) $message['angle'];
+                $momentum = (float) $message['momentum'];
                 $life = 1;
                 $name = $this->name;
                 $authorized = false;
@@ -158,13 +168,13 @@ class Player extends Character
 
 
                     if(isset($message['name'])) {
-                        $nextName = trim($message['name']);
+                        $nextName = trim((string) $message['name']);
                         if($nextName !== '' && strlen($nextName) <= 24) {
                             $this->name = $nextName;
                         }
                     }
                     if(isset($message['color'])) {
-                        $nextColor = trim($message['color']);
+                        $nextColor = trim((string) $message['color']);
                         if($nextColor !== '') {
                             $this->color = $nextColor;
                         }
@@ -182,6 +192,9 @@ class Player extends Character
         else if($action == TYPES_MESSAGES_LOOTMOVE) {
             if($this->lootmoveCallback) 
             {
+                if (!isset($message[1], $message[2], $message[3])) {
+                    return;
+                }
                 $this->setPosition($message[1], $message[2]);
                 
                 $item = $this->server->getEntityById($message[3]);
@@ -196,6 +209,9 @@ class Player extends Character
         else if($action == TYPES_MESSAGES_AGGRO) {
             if($this->moveCallback) 
             {
+                if (!isset($message[1])) {
+                    return;
+                }
                 $this->server->handleMobHate($message[1], $this->id, 5);
             }
         }

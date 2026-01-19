@@ -10,6 +10,18 @@
 		var messageHistory = [];
 		var messagePointer = -1;
 		var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+		var sentOnKeydown = false;
+
+		var submitMessage = function() {
+			if (input.val().length > 0) {
+				messageHistory.push(input.val());
+				messagePointer = messageHistory.length;
+				if (typeof app !== 'undefined' && app) {
+					app.sendMessage(input.val());
+				}
+			}
+			closechat();
+		};
 
 		var closechat = function() {
 			hidden = true;
@@ -43,6 +55,7 @@
 			}
 		});
 		input.keydown(function(e){
+			var isEnterKey = e.key === 'Enter' || e.keyCode == keys.enter;
 			if(input.val().length > 0) {
 				//set timeout because event occurs before text is entered
 				setTimeout(updateDimensions,0.1);
@@ -54,6 +67,12 @@
 			}
 
 			if(!hidden) {
+				if (isEnterKey) {
+					sentOnKeydown = true;
+					e.preventDefault();
+					submitMessage();
+					return;
+				}
 
 				e.stopPropagation();
 				if(messageHistory.length > 0) {
@@ -84,6 +103,11 @@
 		input.keyup(function(e) {
 
 			var k = e.keyCode;
+			var isEnterKey = e.key === 'Enter' || k == keys.enter;
+			if (sentOnKeydown && isEnterKey) {
+				sentOnKeydown = false;
+				return;
+			}
 			if(input.val().length >= 45)
 			{
 				input.val(input.val().substr(0,45));
@@ -99,13 +123,12 @@
 				closechat();
 			}
 			if(!hidden) {
-				if(k == keys.esc || k == keys.enter || (k == keys.space && input.val().length > 35)) {
-					if(k != keys.esc && input.val().length > 0) {
-					    	messageHistory.push(input.val());
-			    			messagePointer = messageHistory.length;
-						app.sendMessage(input.val());
+				if(k == keys.esc || isEnterKey || (k == keys.space && input.val().length > 35)) {
+					if(k != keys.esc) {
+						submitMessage();
+					} else {
+						closechat();
 					}
-					closechat();
 				}
 
 				e.stopPropagation();

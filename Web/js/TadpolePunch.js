@@ -6,7 +6,6 @@ var TadpolePunch = function(tadpole) {
     var punch = this;
     punch.joints = [];
 
-    var tadpole = tadpole;
     var jointSpacing = 1.4;
     var animationRate = 0;
 
