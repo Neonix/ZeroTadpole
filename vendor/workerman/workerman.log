@@ -1,0 +1,25 @@
+2026-01-19 13:27:12 pid:24106 Workerman[start.php] start in DEBUG mode
+2026-01-19 13:29:00 pid:24106 Workerman[start.php] stopping ...
+2026-01-19 13:29:00 pid:24106 worker[ZeroWeb:24108] exit with status 2
+2026-01-19 13:29:00 pid:24106 worker[ZeroWorker:24107] exit with status 2
+2026-01-19 13:29:00 pid:24106 Workerman[start.php] has been stopped
+2026-01-19 13:44:42 pid:24373 Workerman[start.php] start in DEBUG mode
+2026-01-19 13:44:43 pid:24373 Workerman[start.php] stopping ...
+2026-01-19 13:44:43 pid:24373 worker[ZeroWeb:24375] exit with status 2
+2026-01-19 13:44:43 pid:24373 worker[ZeroWorker:24374] exit with status 2
+2026-01-19 13:44:43 pid:24373 Workerman[start.php] has been stopped
+2026-01-19 13:46:32 pid:24464 Workerman[start.php] start in DEBUG mode
+2026-01-19 13:46:33 pid:24466 Error: Call to undefined method Workerman\Protocols\Http::getMimeTypesFile() in /Users/neonix/ZeroTadpole/vendor/workerman/workerman/WebServer.php:124
+Stack trace:
+#0 /Users/neonix/ZeroTadpole/vendor/workerman/workerman/WebServer.php(101): Workerman\WebServer->initMimeTypeMap()
+#1 /Users/neonix/ZeroTadpole/vendor/workerman/workerman/Worker.php(2582): Workerman\WebServer->onWorkerStart(Object(Workerman\WebServer))
+#2 /Users/neonix/ZeroTadpole/vendor/workerman/workerman/WebServer.php(85): Workerman\Worker->run()
+#3 /Users/neonix/ZeroTadpole/vendor/workerman/workerman/Worker.php(1717): Workerman\WebServer->run()
+#4 /Users/neonix/ZeroTadpole/vendor/workerman/workerman/Worker.php(1510): Workerman\Worker::forkOneWorkerForLinux(Object(Workerman\WebServer))
+#5 /Users/neonix/ZeroTadpole/vendor/workerman/workerman/Worker.php(1484): Workerman\Worker::forkWorkersForLinux()
+#6 /Users/neonix/ZeroTadpole/vendor/workerman/workerman/Worker.php(561): Workerman\Worker::forkWorkers()
+#7 /Users/neonix/ZeroTadpole/start.php(37): Workerman\Worker::runAll()
+#8 {main}
+2026-01-19 13:46:33 pid:24464 Workerman[start.php] stopping ...
+2026-01-19 13:46:33 pid:24464 worker[ZeroWeb:24466] exit with status 64000
+2026-01-19 13:46:33 pid:24464 Workerman[start.php] has been stopped
