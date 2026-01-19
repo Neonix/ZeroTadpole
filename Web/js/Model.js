@@ -3,4 +3,6 @@ var Model = function() {
 	this.userTadpole;
 	this.camera;
 	this.settings;
+	this.playerCount = 0;
+	this.npcTriggered = false;
 }

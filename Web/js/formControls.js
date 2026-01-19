@@ -5,13 +5,17 @@
 	$.fn.initChat = function() {
 		var input = $(this);
 		var chatText = $("#chatText");
+		var body = $('body');
 		var hidden = true;
 		var messageHistory = [];
 		var messagePointer = -1;
+		var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
 		var closechat = function() {
 			hidden = true;
 			input.css("opacity","0");
+			input.css("pointer-events","none");
+			body.removeClass('chat-open');
 			messagePointer = messageHistory.length;
 			input.val('');
 			chatText.text('')
@@ -26,14 +30,25 @@
 			});
 		};
 
-		input.blur(function(e) {
-			setTimeout(function(){input.focus()}, 0.1);
+		input.on('focus', function() {
+			hidden = false;
+			body.addClass('chat-open');
+			input.css("opacity","1");
+			input.css("pointer-events","auto");
+			updateDimensions();
+		});
+		input.on('blur', function() {
+			if (input.val().length === 0) {
+				closechat();
+			}
 		});
 		input.keydown(function(e){
 			if(input.val().length > 0) {
 				//set timeout because event occurs before text is entered
 				setTimeout(updateDimensions,0.1);
 				input.css("opacity","1");
+				input.css("pointer-events","auto");
+				body.addClass('chat-open');
 			} else {
 				closechat();
 			}
@@ -77,6 +92,8 @@
 			if(input.val().length > 0) {
 				updateDimensions();
 				input.css("opacity","1");
+				input.css("pointer-events","auto");
+				body.addClass('chat-open');
 				hidden = false;
 			} else {
 				closechat();
@@ -97,7 +114,7 @@
 
 		});
 
-		input.focus();
+		closechat();
 	}
 	
 	$(function() {

@@ -12,10 +12,20 @@ var App = function(aSettings, aCanvas) {
 			keyNav = {x:0,y:0},
 			messageQuota = 5
 	;
+	var scoreEl = document.getElementById('score-value');
+	var questEl = document.getElementById('quest-progress');
+	var boostEl = document.getElementById('boost-status');
+	var gemsEl = document.getElementById('gems-value');
 	
 	app.update = function() {
 	  if (messageQuota < 5 && model.userTadpole.age % 50 == 0) { messageQuota++; }
-	  
+	  var now = Date.now();
+	  if (model.boostUntil && now < model.boostUntil && model.userTadpole.targetMomentum > 0) {
+			model.userTadpole.targetMomentum = model.userTadpole.maxMomentum * 1.8;
+	  } else if (model.userTadpole.targetMomentum > model.userTadpole.maxMomentum) {
+			model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
+	  }
+
 		// Update usertadpole
 		if(keyNav.x != 0 || keyNav.y != 0) {
 			model.userTadpole.userUpdate(model.tadpoles, model.userTadpole.x + keyNav.x,model.userTadpole.y + keyNav.y);
@@ -50,6 +60,25 @@ var App = function(aSettings, aCanvas) {
 			var arrow = model.arrows[i];
 			arrow.update();
 		}
+
+		updateCollectibles();
+		updateQuestUI();
+
+		var npc = model.tadpoles['npc-guide'];
+		if (npc && !model.npcTriggered) {
+			var dx = model.userTadpole.x - npc.x;
+			var dy = model.userTadpole.y - npc.y;
+			var npcDistance = Math.sqrt(dx * dx + dy * dy);
+			npc.isClose = npcDistance < 24;
+			if (npcDistance < 20) {
+				model.npcTriggered = true;
+				if (window.openNpcDialog) {
+					window.openNpcDialog();
+				}
+			}
+		} else if (npc) {
+			npc.isClose = false;
+		}
 	};
 	
 	
@@ -61,6 +90,8 @@ var App = function(aSettings, aCanvas) {
 		for(i in model.waterParticles) {
 			model.waterParticles[i].draw(context);
 		}
+
+		drawCollectibles();
 		
 		// Draw tadpoles
 		for(id in model.tadpoles) {
@@ -98,9 +129,27 @@ var App = function(aSettings, aCanvas) {
 	app.onSocketMessage = function(e) {
 		try {
 			var data = JSON.parse(e.data);
-			webSocketService.processMessage(data);
+			if (Array.isArray(data)) {
+				for (var i = 0; i < data.length; i++) {
+					webSocketService.processMessage(data[i]);
+				}
+			} else {
+				webSocketService.processMessage(data);
+			}
 
 		} catch(e) {}
+	};
+
+	var connectSocket = function() {
+		webSocket = new WebSocket(model.settings.socketServer);
+		webSocket.onopen = app.onSocketOpen;
+		webSocket.onclose = app.onSocketClose;
+		webSocket.onmessage = app.onSocketMessage;
+		if (!webSocketService) {
+			webSocketService = new WebSocketService(model, webSocket, connectSocket);
+		} else {
+			webSocketService.setSocket(webSocket);
+		}
 	};
 	
 	app.sendMessage = function(msg) {
@@ -114,6 +163,14 @@ var App = function(aSettings, aCanvas) {
 	
 	app.authorize = function(token,verifier) {
 		webSocketService.authorize(token,verifier);
+	}
+
+	app.requestPlayerList = function() {
+		webSocketService.requestPlayerList();
+	}
+
+	app.sendPrivateMessage = function(targetId, message) {
+		webSocketService.sendPrivateMessage(targetId, message);
 	}
 	
 	app.mousedown = function(e) {
@@ -150,6 +207,13 @@ var App = function(aSettings, aCanvas) {
 			keyNav.y = 1;
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 			e.preventDefault();
+		}
+		else if(e.keyCode == keys.space) {
+			var now = Date.now();
+			if (!model.boostCooldownUntil || now > model.boostCooldownUntil) {
+				model.boostUntil = now + 1000;
+				model.boostCooldownUntil = now + 5000;
+			}
 		}
 		else if(e.keyCode == keys.left) {
 			keyNav.x = -1;
@@ -240,6 +304,104 @@ var App = function(aSettings, aCanvas) {
 		canvas.width = window.innerWidth;
 		canvas.height = window.innerHeight;
 	};
+
+	var updateCollectibles = function() {
+		if (!model.collectibles) {
+			model.collectibles = [];
+		}
+		if (model.collectibles.length < 12) {
+			for (var i = model.collectibles.length; i < 12; i++) {
+				model.collectibles.push({
+					x: model.userTadpole.x + (Math.random() * 120 - 60),
+					y: model.userTadpole.y + (Math.random() * 120 - 60),
+					r: 2 + Math.random() * 2
+				});
+			}
+		}
+		for (var j = model.collectibles.length - 1; j >= 0; j--) {
+			var orb = model.collectibles[j];
+			var dx = model.userTadpole.x - orb.x;
+			var dy = model.userTadpole.y - orb.y;
+			if (Math.sqrt(dx * dx + dy * dy) < model.userTadpole.size + orb.r) {
+				model.collectibles.splice(j, 1);
+				model.score += 1;
+				if (model.questCollected < model.questTarget) {
+					model.questCollected += 1;
+				}
+				if (model.questCollected >= model.questTarget) {
+					handleQuestComplete();
+				}
+			}
+		}
+	};
+
+	var drawCollectibles = function() {
+		if (!model.collectibles) {
+			return;
+		}
+		for (var i = 0; i < model.collectibles.length; i++) {
+			var orb = model.collectibles[i];
+			context.beginPath();
+			context.fillStyle = 'rgba(140,230,222,0.7)';
+			context.arc(orb.x, orb.y, orb.r, 0, Math.PI * 2);
+			context.fill();
+		}
+	};
+
+	var updateQuestUI = function() {
+		if (scoreEl) {
+			scoreEl.textContent = model.score;
+		}
+		if (gemsEl) {
+			gemsEl.textContent = model.gems;
+		}
+		if (questEl) {
+			questEl.textContent = 'Collecte ' + model.questCollected + ' / ' + model.questTarget + ' orbes';
+		}
+		if (boostEl) {
+			var now = Date.now();
+			boostEl.textContent = model.boostCooldownUntil && now < model.boostCooldownUntil ? 'Recharge' : 'Prêt';
+		}
+	};
+
+	var handleQuestComplete = function() {
+		model.gems += 1;
+		localStorage.setItem('tadpole_gems', model.gems);
+		showToast('Quête terminée ! +1 Gemme');
+		unlockNextColor();
+		model.questCollected = 0;
+		model.questTarget += 2;
+	};
+
+	var showToast = function(message) {
+		var container = document.getElementById('toast-container');
+		if (!container) {
+			return;
+		}
+		var toast = document.createElement('div');
+		toast.className = 'toast';
+		toast.textContent = message;
+		container.appendChild(toast);
+		setTimeout(function() {
+			if (toast.parentNode) {
+				toast.parentNode.removeChild(toast);
+			}
+		}, 2500);
+	};
+
+	var unlockNextColor = function() {
+		var palette = ['#9ad7ff', '#8ce6de', '#f7d6ff', '#ffd59e', '#b8ffb0'];
+		var unlocked = JSON.parse(localStorage.getItem('tadpole_colors') || '[]');
+		var next = palette.find(function(color) { return unlocked.indexOf(color) === -1; });
+		if (next) {
+			unlocked.push(next);
+			localStorage.setItem('tadpole_colors', JSON.stringify(unlocked));
+			if (window.addUnlockedColor) {
+				window.addUnlockedColor(next);
+			}
+			showToast('Nouvelle couleur débloquée');
+		}
+	};
 	
 	// Constructor
 	(function(){
@@ -253,6 +415,14 @@ var App = function(aSettings, aCanvas) {
 		model.userTadpole = new Tadpole();
 		model.userTadpole.id = -1;
 		model.tadpoles[model.userTadpole.id] = model.userTadpole;
+
+		model.collectibles = [];
+		model.score = 0;
+		model.questTarget = 5;
+		model.questCollected = 0;
+		model.boostUntil = 0;
+		model.boostCooldownUntil = 0;
+		model.gems = parseInt(localStorage.getItem('tadpole_gems') || '0', 10);
 		
 		model.waterParticles = [];
 		for(var i = 0; i < 150; i++) {
@@ -263,11 +433,6 @@ var App = function(aSettings, aCanvas) {
 		
 		model.arrows = {};
 		
-		webSocket 				= new WebSocket( model.settings.socketServer );
-		webSocket.onopen 		= app.onSocketOpen;
-		webSocket.onclose		= app.onSocketClose;
-		webSocket.onmessage 	= app.onSocketMessage;
-		
-		webSocketService		= new WebSocketService(model, webSocket);
+		connectSocket();
 	})();
 }

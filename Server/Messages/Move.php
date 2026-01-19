@@ -34,6 +34,7 @@ class Move
             'angle'     => (float) $this->entity->angle,
             'momentum'  => (float) $this->entity->momentum,
             'name'      => $this->entity->name,
+            'color'     => $this->entity->color,
             'life'      => 1,
             'authorized'=> false
         );
@@ -42,4 +43,3 @@ class Move
         return $output;
     }
 }
-

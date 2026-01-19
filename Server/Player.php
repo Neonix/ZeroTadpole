@@ -20,6 +20,17 @@ class Player extends Character
     public $connection;
     public $server;
     public $weaponLevel = 0;
+    public $formatChecker;
+    public $firepotionTimeout = 0;
+    public $exitCallback;
+    public $moveCallback;
+    public $lootmoveCallback;
+    public $zoneCallback;
+    public $orientCallback;
+    public $messageCallback;
+    public $broadcastCallback;
+    public $broadcastzoneCallback;
+    public $requestposCallback;
     
     public function __construct($connection, $worldServer)
     {
@@ -65,7 +76,11 @@ class Player extends Character
         {
             //var_dump($message);
             $name = $message["name"];
+            $color = isset($message["color"]) ? $message["color"] : null;
             $this->name = $name === null ? "Guess".$this->id : $name;
+            if($color) {
+                $this->color = $color;
+            }
             $this->kind = TYPES_ENTITIES_WARRIOR;
             //$this->equipArmor($message[2]);
             //$this->equipWeapon($message[3]);
@@ -88,10 +103,16 @@ class Player extends Character
             $this->hasEnteredGame = true;
             $this->isDead = false;
         }
-        elseif($action == TYPES_MESSAGES_WHO)
+        elseif($action == TYPES_MESSAGES_WHO || $action === 'who')
         {
-            array_shift($message);
-            $this->server->pushSpawnsToPlayer($this, $message);
+            $this->server->pushToPlayer($this, new Messages\PlayerList($this->server->getPlayerList()));
+        }
+        else if($action === 'private') {
+            $targetId = isset($message["target"]) ? (int)$message["target"] : null;
+            $msg = trim($message["message"]);
+            if($targetId && $msg) {
+                $this->server->sendPrivateMessage($this, $targetId, $msg);
+            }
         }
         else if($action === TYPES_MESSAGES_ZONE) {
             call_user_func($this->zoneCallback);
@@ -135,6 +156,19 @@ class Player extends Character
                 //if($this->server->isValidPosition($x, $y)) {
 
 
+
+                    if(isset($message['name'])) {
+                        $nextName = trim($message['name']);
+                        if($nextName !== '' && strlen($nextName) <= 24) {
+                            $this->name = $nextName;
+                        }
+                    }
+                    if(isset($message['color'])) {
+                        $nextColor = trim($message['color']);
+                        if($nextColor !== '') {
+                            $this->color = $nextColor;
+                        }
+                    }
 
                     $this->setPosition($x, $y, $angle, $momentum);
                     $this->clearTarget();

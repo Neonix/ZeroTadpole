@@ -6,6 +6,7 @@ var Tadpole = function() {
 	this.size = 4;
 	
 	this.name = '';
+	this.color = '#9ad7ff';
 	this.age = 0;
 	
 	this.hover = false;
@@ -77,6 +78,12 @@ var Tadpole = function() {
 	};
 	
 	this.onclick = function(e) {
+		if(tadpole.isNpc && e.which == 1) {
+			if (window.openNpcDialog) {
+				window.openNpcDialog();
+			}
+			return true;
+		}
 		if(e.ctrlKey && e.which == 1) {
 			if(isAuthorized() && tadpole.hover) {
 				window.open("http://twitter.com/" + tadpole.name.substring(1));
@@ -128,14 +135,21 @@ var Tadpole = function() {
 	
 	this.draw = function(context) {
 		var opacity = Math.max(Math.min(20 / Math.max(tadpole.timeSinceLastServerUpdate-300,1),1),.2).toFixed(3);
+		var baseColor = colorToRgba(tadpole.color || '#9ad7ff', opacity);
 
-		if(tadpole.hover && isAuthorized()) {
+		if(tadpole.isNpc && tadpole.isOvule) {
+			drawOvule(context, baseColor, opacity, tadpole.hover || tadpole.isClose);
+			drawName(context);
+			return;
+		} else if(tadpole.isNpc) {
+			context.fillStyle = baseColor;
+		} else if(tadpole.hover && isAuthorized()) {
 			context.fillStyle = 'rgba(192, 253, 247,'+opacity+')';
 			// context.shadowColor   = 'rgba(249, 136, 119, '+opacity*0.7+')';
 		}
 		else {
-			context.fillStyle = 'rgba(226,219,226,'+opacity+')';
-		}
+			context.fillStyle = baseColor;
+			}
 		
 		context.shadowOffsetX = 0;
 		context.shadowOffsetY = 0;
@@ -150,10 +164,17 @@ var Tadpole = function() {
 		context.closePath();
 		context.fill();
 		
-		context.shadowBlur = 0;
-		context.shadowColor   = '';
+			context.shadowBlur = 0;
+			context.shadowColor   = '';
 
 		tadpole.punch.draw(context);
+		if (tadpole.isNpc) {
+			context.beginPath();
+			context.strokeStyle = 'rgba(140, 230, 222,' + opacity + ')';
+			context.lineWidth = 1.5;
+			context.arc(tadpole.x, tadpole.y, tadpole.size + 3, 0, Math.PI * 2);
+			context.stroke();
+		}
 		drawName(context);
 		drawMessages(context);
 	};
@@ -164,7 +185,7 @@ var Tadpole = function() {
 
 	var drawName = function(context) {
 		var opacity = Math.max(Math.min(20 / Math.max(tadpole.timeSinceLastServerUpdate-300,1),1),.2).toFixed(3);
-		context.fillStyle = 'rgba(226,219,226,'+opacity+')';
+		context.fillStyle = colorToRgba(tadpole.color || '#9ad7ff', opacity);
 		context.shadowColor   = 'rgba(255, 255, 255, '+opacity*0.7+')';
 		context.font = 7 + "px 'proxima-nova-1','proxima-nova-2', arial, sans-serif";
 		context.textBaseline = 'hanging';
@@ -178,6 +199,46 @@ var Tadpole = function() {
 			tadpole.messages[i].draw(context, tadpole.x+10, tadpole.y+5, i);
 		}
 		tadpole.messages.reverse();
+	};
+
+	var colorToRgba = function(hex, alpha) {
+		var normalized = hex.replace('#', '');
+		if (normalized.length === 3) {
+			normalized = normalized.split('').map(function(c) { return c + c; }).join('');
+		}
+		var bigint = parseInt(normalized, 16);
+		if (isNaN(bigint)) {
+			return 'rgba(226,219,226,' + alpha + ')';
+		}
+		var r = (bigint >> 16) & 255;
+		var g = (bigint >> 8) & 255;
+		var b = bigint & 255;
+		return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+	};
+
+	var drawOvule = function(context, baseColor, opacity, isActive) {
+		context.save();
+		context.translate(tadpole.x, tadpole.y);
+		context.scale(1.6, 1.2);
+		var gradient = context.createRadialGradient(-2, -2, 2, 0, 0, tadpole.size);
+		gradient.addColorStop(0, 'rgba(255,255,255,' + opacity + ')');
+		gradient.addColorStop(1, baseColor);
+		context.fillStyle = gradient;
+		context.beginPath();
+		context.arc(0, 0, tadpole.size, 0, Math.PI * 2);
+		context.fill();
+		context.restore();
+		if (isActive) {
+			context.beginPath();
+			context.strokeStyle = 'rgba(255,255,255,' + opacity + ')';
+			context.lineWidth = 1.5;
+			context.arc(tadpole.x, tadpole.y, tadpole.size + 4, 0, Math.PI * 2);
+			context.stroke();
+			context.beginPath();
+			context.fillStyle = 'rgba(255,255,255,' + opacity + ')';
+			context.arc(tadpole.x + 3, tadpole.y - 2, 2, 0, Math.PI * 2);
+			context.fill();
+		}
 	};
 
 	//Surement ici :p Action du Punch

@@ -31,6 +31,8 @@ class Map
     public $connectedGroups = array();
     public $grid;
     public $filePath;
+    public $checkpoints = array();
+    public $startingAreas = array();
     
     public function __construct($filepath)
     {

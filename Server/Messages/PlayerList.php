@@ -1,4 +1,4 @@
-<?php 
+<?php
 /**
  * This file is part of workerman.
  *
@@ -13,22 +13,19 @@
  */
 namespace Server\Messages;
 
-class Population
+class PlayerList
 {
-    public $world = 0;
-    public $total = 0;
-    public function __construct($world, $total)
+    public $players = array();
+    public function __construct($players)
     {
-        $this->world = $world;
-        $this->total = $total;
+        $this->players = $players;
     }
     
     public function serialize()
     {
         return array(
-            'type' => 'population',
-            'world' => $this->world,
-            'total' => $this->total,
+            'type' => 'players',
+            'players' => $this->players
         );
     }
 }

@@ -24,6 +24,9 @@ class Entity
     public $momentum = 0;
     public $life = 0;
     public $name = 'Guess';
+    public $color = '#9ad7ff';
+    public $group = null;
+    public $recentlyLeftGroups = array();
 
     public function __construct($id, $type, $kind, $x, $y, $angle, $momentum, $name)
     {

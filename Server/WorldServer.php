@@ -16,6 +16,13 @@ class WorldServer
     public $server;
     public $ups;
     public $map;
+    public $initCallback;
+    public $connectCallback;
+    public $enterCallback;
+    public $addedCallback;
+    public $removedCallback;
+    public $regenCallback;
+    public $attackCallback;
     
     public $entities = array();
     public $players = array();
@@ -90,6 +97,7 @@ class WorldServer
                 
                     // Number of players in this world
                     $self->pushToPlayer($player, new Messages\Population($self->playerCount, 1));
+                    $self->updatePopulation($self->playerCount);
                     $self->pushRelevantEntityListTo($player);
                 
                     $moveCallback = function($x, $y) use($player, $self)
@@ -147,6 +155,7 @@ class WorldServer
                         echo $player->name . " has left the game.\n";
                         $self->removePlayer($player);
                         $self->decrementPlayerCount();
+                        $self->updatePopulation($self->playerCount);
                 
                         if(isset($self->removedCallback)) 
                         {
@@ -338,9 +347,7 @@ class WorldServer
     {
         if($player && isset($this->outgoingQueues[$player->id])) 
         {
-            //$this->outgoingQueues[$player->id][] = $message->serialize();
-            //Double tableau, je sais pas pourquoi oO ?
-            $this->outgoingQueues[$player->id] = $message->serialize();
+            $this->outgoingQueues[$player->id][] = $message->serialize();
         }
         else 
         {
@@ -796,6 +803,33 @@ class WorldServer
                 $item = $this->addItem($this->createItem(Types::getKindFromString($itemName), $mob->x, $mob->y));
                 return $item;
             }
+        }
+    }
+
+    public function getPlayerList()
+    {
+        $list = array();
+        foreach($this->players as $player)
+        {
+            $list[] = array(
+                'id' => $player->id,
+                'name' => $player->name,
+                'color' => $player->color
+            );
+        }
+        return $list;
+    }
+
+    public function sendPrivateMessage($fromPlayer, $targetId, $message)
+    {
+        $target = $this->getEntityById($targetId);
+        if(!$target) {
+            return;
+        }
+        $payload = new Messages\PrivateChat($fromPlayer, $message);
+        $this->pushToPlayer($target, $payload);
+        if($fromPlayer && $fromPlayer->id !== $targetId) {
+            $this->pushToPlayer($fromPlayer, $payload);
         }
     }
     
