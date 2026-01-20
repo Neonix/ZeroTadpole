@@ -1136,7 +1136,7 @@ body {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     color: var(--text);
-    font-size: 1rem;
+    font-size: 16px;
     font-family: inherit;
 }
 

@@ -167,12 +167,31 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		}
 	}
 
+	this.spellHandler = function(data) {
+		if (!data || !window.GameSystems || !window.GameSystems.combat) {
+			return;
+		}
+		window.GameSystems.combat.castSpellFromRemote(data);
+	}
+
 	// Send orb collection to other players
 	this.sendOrbCollected = function(orbId) {
 		if (webSocket && webSocket.readyState === WebSocket.OPEN) {
 			webSocket.send(JSON.stringify({
 				type: 'orb',
 				orbId: orbId
+			}));
+		}
+	}
+
+	this.sendSpell = function(spellId, x, y, angle) {
+		if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+			webSocket.send(JSON.stringify({
+				type: 'spell',
+				spellId: spellId,
+				x: x,
+				y: y,
+				angle: angle
 			}));
 		}
 	}

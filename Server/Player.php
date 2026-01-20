@@ -333,6 +333,16 @@ class Player extends Character
                 $this->server->handleOpenedChest($chest, $this);
             }
         }
+        else if($action === 'spell') {
+            if (!isset($message['spellId'], $message['x'], $message['y'], $message['angle'])) {
+                return;
+            }
+            $spellId = trim((string) $message['spellId']);
+            $x = (float) $message['x'];
+            $y = (float) $message['y'];
+            $angle = (float) $message['angle'];
+            $this->broadcastToZone(new Messages\Spell($this, $spellId, $x, $y, $angle), true);
+        }
         else if($action == TYPES_MESSAGES_CHECK) {
             $checkpoint = $this->server->map->getCheckpoint($message[1]);
             if($checkpoint) 

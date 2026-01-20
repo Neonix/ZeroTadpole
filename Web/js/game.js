@@ -634,7 +634,10 @@
         dom.chatBadge.classList.add('hidden');
         
         if (state.chatOpen) {
-            dom.chatInput.focus();
+            requestAnimationFrame(() => {
+                dom.chatInput.focus();
+                dom.chatInput.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            });
         } else {
             dom.chatInput.blur();
         }
@@ -1467,7 +1470,15 @@
         
         // Chat
         dom.chatToggle?.addEventListener('click', toggleChat);
+        dom.chatToggle?.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            toggleChat();
+        }, { passive: false });
         dom.chatSend?.addEventListener('click', sendChatMessage);
+        dom.chatSend?.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            sendChatMessage();
+        }, { passive: false });
         dom.chatInput?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -1475,6 +1486,12 @@
             }
             if (e.key === 'Escape') {
                 toggleChat();
+            }
+        });
+        dom.chatInput?.addEventListener('focus', () => {
+            if (!state.chatOpen) {
+                state.chatOpen = true;
+                dom.chatInputArea.classList.remove('hidden');
             }
         });
         

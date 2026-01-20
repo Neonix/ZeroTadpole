@@ -6,12 +6,12 @@ var TadpolePunch = function(tadpole) {
     var punch = this;
     punch.joints = [];
 
-    var jointSpacing = 1.4;
+    var jointSpacing = 1.6;
     var animationRate = 0;
 
 
     punch.update = function() {
-        animationRate += (.2 + tadpole.momentum / 10);
+        animationRate += (0.12 + tadpole.momentum / 14);
 
 
         //console.log('update');
@@ -31,8 +31,8 @@ var TadpolePunch = function(tadpole) {
             while(anglediff > Math.PI) {
                 anglediff -= Math.PI * 2;
             }
-            punchJoint.angle += anglediff * (jointSpacing * 3 + (Math.min(tadpole.momentum / 2, Math.PI * 1.8))) / 8;
-            punchJoint.angle += Math.cos(animationRate - (i / 3)) * ((tadpole.momentum + .3) / 40);
+            punchJoint.angle += anglediff * (jointSpacing * 2.4 + Math.min(tadpole.momentum, Math.PI * 1.6)) / 10;
+            punchJoint.angle += Math.cos(animationRate - (i / 3)) * ((tadpole.momentum + 0.3) / 55);
 
             if(i == 0) {
                 punchJoint.x = parentJoint.x + Math.cos(punchJoint.angle + Math.PI) * 5;
@@ -48,59 +48,56 @@ var TadpolePunch = function(tadpole) {
 
     punch.draw = function(context) {
 
-        var path = [[],[]];
-        var opacity = Math.max(Math.min(20 / Math.max(tadpole.timeSinceLastServerUpdate-300,1),1),.2).toFixed(3);
+        var opacity = Math.max(Math.min(18 / Math.max(tadpole.timeSinceLastServerUpdate - 250, 1), 1), 0.2);
+        var punchColor = tadpole.color || '#ff9a9a';
 
 
         //var x1 = tadpole.x + Math.cos(tadpole.angle + Math.PI * 1.5) * tadpole.size * espacement + décalage;
         //var x1 = tadpole.x + Math.cos(tadpole.angle + Math.PI * 1.5) * tadpole.size * 2 + 2;
 
+        context.save();
+        context.globalAlpha = opacity;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
 
-
-        //Jonction de l'annimation entre les 2 trames pour eviter les sacades
-        for(var i = 0, len = punch.joints.length; i < len; i++) {
-            var punchJoint = punch.joints[i];
-
-            //TODO
-            //console.log(tadpole.changed);
-
-            var x1 = punchJoint.x + Math.cos(punchJoint.angle + Math.PI * 1.5) * tadpole.size * 1.5 + 1.5;
-            var y1 = punchJoint.y + Math.sin(punchJoint.angle + Math.PI * 1.5) * tadpole.size * 1.5 + 1.5;
-
-            var x2 = punchJoint.x + Math.cos(punchJoint.angle + Math.PI / 2) * tadpole.size * 1.5 + 1.5;
-            var y2 = punchJoint.y + Math.sin(punchJoint.angle + Math.PI / 2) * tadpole.size * 1.5 + 1.5;
-            path[0].push({x: x1, y: y1});
-            path[1].push({x: x2, y: y2});
-        }
-
-
-
-        //WORKING TEST virer la sacade du point fist 1
-        for(var i = 0; i < path[0].length; i++) {
-            var punchJoint = punch.joints[i];
-
-            context.beginPath();
-            context.shadowOffsetX = 0;
-            context.shadowOffsetY = 0;
-            context.shadowBlur    = 6;
-            context.fillStyle = 'rgba(255, 151, 151,'+opacity+')';
-            context.shadowColor   = 'rgba(255, 255, 255, '+opacity*0.7+')';
-            context.arc(path[0][i].x, path[0][i].y, tadpole.size / 2, punchJoint.angle + Math.PI * 2.7, punchJoint.angle + Math.PI * 1.3, true);
-            context.closePath();
-            context.fill();
-        }
-
-
-        //fist 2
+        context.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        context.lineWidth = Math.max(1.5, tadpole.size / 3);
         context.beginPath();
-        context.shadowOffsetX = 0;
-        context.shadowOffsetY = 0;
-        context.shadowBlur    = 6;
-        context.fillStyle = 'rgba(255, 151, 151,'+opacity+')';
-        context.shadowColor   = 'rgba(255, 255, 255, '+opacity*0.7+')';
-        context.arc(path[1][0].x, path[1][0].y, tadpole.size / 2, tadpole.angle + Math.PI * 2.7, tadpole.angle + Math.PI * 1.3, true);
-        context.closePath();
+        for(var i = 0, len = punch.joints.length; i < len; i++) {
+            var joint = punch.joints[i];
+            if(i === 0) {
+                context.moveTo(joint.x, joint.y);
+            } else {
+                context.lineTo(joint.x, joint.y);
+            }
+        }
+        context.stroke();
+
+        context.strokeStyle = punchColor;
+        context.lineWidth = Math.max(2.2, tadpole.size / 2.4);
+        context.beginPath();
+        for(var j = 0, jLen = punch.joints.length; j < jLen; j++) {
+            var jointLine = punch.joints[j];
+            if(j === 0) {
+                context.moveTo(jointLine.x, jointLine.y);
+            } else {
+                context.lineTo(jointLine.x, jointLine.y);
+            }
+        }
+        context.stroke();
+
+        var fist = punch.joints[0];
+        var fistRadius = Math.max(3, tadpole.size * 0.7);
+        var gradient = context.createRadialGradient(fist.x - 2, fist.y - 2, 1, fist.x, fist.y, fistRadius);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+        gradient.addColorStop(1, punchColor);
+        context.fillStyle = gradient;
+        context.shadowBlur = 8;
+        context.shadowColor = 'rgba(255, 255, 255, 0.3)';
+        context.beginPath();
+        context.arc(fist.x, fist.y, fistRadius, 0, Math.PI * 2);
         context.fill();
+        context.restore();
 
     };
 

@@ -528,6 +528,13 @@
             // Attack spell - create projectile
             if (window.GameSystems.combat) {
                 window.GameSystems.combat.castSpell(spell);
+                if (window.gameApp && window.gameApp.sendSpell) {
+                    const model = window.gameApp.model;
+                    const player = model?.userTadpole;
+                    if (player) {
+                        window.gameApp.sendSpell(spell.id, player.x, player.y, player.angle || 0);
+                    }
+                }
             }
             
             return true;
@@ -1003,6 +1010,29 @@
             if (window.showToast) {
                 window.showToast(`${spell.icon} ${spell.name} !`, 'info');
             }
+        }
+
+        castSpellFromRemote(payload) {
+            if (!payload || !payload.spellId) {
+                return;
+            }
+            const spell = ITEMS[payload.spellId];
+            if (!spell || spell.type !== 'spell') {
+                return;
+            }
+            const projectile = {
+                x: payload.x || 0,
+                y: payload.y || 0,
+                angle: payload.angle || 0,
+                speed: spell.speed || 10,
+                damage: spell.damage,
+                distance: 0,
+                maxDistance: spell.range,
+                spell: spell,
+                aoe: spell.aoe || false,
+                remote: true
+            };
+            this.projectiles.push(projectile);
         }
         
         draw(context, camera) {

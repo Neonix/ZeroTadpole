@@ -197,6 +197,10 @@ var App = function(aSettings, aCanvas) {
 	app.sendPrivateMessage = function(targetId, message) {
 		webSocketService.sendPrivateMessage(targetId, message);
 	}
+
+	app.sendSpell = function(spellId, x, y, angle) {
+		webSocketService.sendSpell(spellId, x, y, angle);
+	}
 	
 	app.mousedown = function(e) {
 		// Ignore if touching UI elements
