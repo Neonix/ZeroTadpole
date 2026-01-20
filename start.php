@@ -1,13 +1,16 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: Neonix
- * Date: 08/07/2017
- * Time: 03:31
+ * ZeroTadpole - Server Startup
+ * 
+ * Note: Workerman 3.5.34 has deprecation warnings with PHP 8.4+
+ * These are suppressed below for cleaner output.
  */
 use \Workerman\Worker;
 
 define('GLOBAL_START', true);
+
+// Suppress deprecation warnings from Workerman (not compatible with PHP 8.4+)
+error_reporting(E_ALL & ~E_DEPRECATED);
 ini_set('display_errors', 'on');
 
 

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>ZeroTadpole - L'aventure des Têtards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0a1628">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="Explore un monde aquatique et deviens le plus grand têtard !">
+    
+    <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+    <link rel="icon" href="/favicon.ico">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+    <!-- Écran de chargement -->
+    <div id="loading-screen">
+        <div class="loader-content">
+            <div class="loader-tadpole">
+                <svg viewBox="0 0 60 30" class="tadpole-svg">
+                    <ellipse cx="15" cy="15" rx="12" ry="10" fill="url(#tadpoleGrad)"/>
+                    <path d="M25 15 Q35 12, 50 8 Q40 15, 50 22 Q35 18, 25 15" fill="url(#tailGrad)"/>
+                    <circle cx="11" cy="13" r="2" fill="#1a2744"/>
+                    <circle cx="19" cy="13" r="2" fill="#1a2744"/>
+                    <defs>
+                        <linearGradient id="tadpoleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#8ce6de"/>
+                            <stop offset="100%" style="stop-color:#5bb8ae"/>
+                        </linearGradient>
+                        <linearGradient id="tailGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#5bb8ae"/>
+                            <stop offset="100%" style="stop-color:#3a9990;stop-opacity:0.3"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h1>ZeroTadpole</h1>
+            <div class="loader-bar">
+                <div class="loader-progress"></div>
+            </div>
+            <p class="loader-text">Plongée dans l'univers aquatique...</p>
+        </div>
+    </div>
+
+    <!-- Canvas du jeu -->
+    <canvas id="canvas"></canvas>
+    
+    <!-- Overlay d'effets -->
+    <div id="effects-overlay"></div>
+
+    <!-- Interface du jeu -->
+    <div id="game-ui">
+        <!-- HUD Principal -->
+        <header id="hud">
+            <div class="hud-left">
+                <button id="menu-btn" class="hud-btn" aria-label="Menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
+                <div class="hud-stat" id="players-stat">
+                    <span class="stat-icon">👥</span>
+                    <span class="stat-value" id="player-count-value">0</span>
+                </div>
+            </div>
+            
+            <div class="hud-center">
+                <div class="hud-stat score-stat">
+                    <span class="stat-icon">⭐</span>
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score-value">0</span>
+                </div>
+                <div class="hud-stat gems-stat">
+                    <span class="stat-icon">💎</span>
+                    <span class="stat-label">Gemmes</span>
+                    <span class="stat-value" id="gems-value">0</span>
+                </div>
+            </div>
+            
+            <div class="hud-right">
+                <button id="fullscreen-btn" class="hud-btn" aria-label="Plein écran">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="expand-icon">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="compress-icon" style="display:none">
+                        <path d="M4 14h3a2 2 0 0 1 2 2v3m2-2v3a2 2 0 0 0 2 2h3M14 10V7a2 2 0 0 1 2-2h3M4 10V7a2 2 0 0 1 2-2h3"/>
+                    </svg>
+                </button>
+                <button id="profile-btn" class="hud-btn profile-btn" aria-label="Profil">
+                    <div class="profile-avatar"></div>
+                </button>
+            </div>
+        </header>
+
+        <!-- Barre de boost -->
+        <div id="boost-bar">
+            <div class="boost-fill" id="boost-fill"></div>
+            <span class="boost-label">ESPACE</span>
+        </div>
+
+        <!-- Tracker de quête -->
+        <div id="quest-tracker">
+            <div class="quest-icon" id="active-quest-icon">🎯</div>
+            <div class="quest-info">
+                <span class="quest-title" id="active-quest-name">Mission</span>
+                <div class="quest-progress-bar">
+                    <div class="quest-progress-fill" id="quest-fill"></div>
+                </div>
+                <span class="quest-text" id="quest-progress">0 / 5 orbes</span>
+            </div>
+        </div>
+
+        <!-- Barre de vie du joueur -->
+        <div id="player-health-bar">
+            <div class="health-icon">❤️</div>
+            <div class="health-track">
+                <div class="health-fill" id="health-fill"></div>
+            </div>
+            <span class="health-text" id="health-text">100/100</span>
+        </div>
+
+        <!-- Barre XP -->
+        <div id="xp-bar">
+            <div class="xp-info">
+                <span class="level-badge" id="level-value">Niv.1</span>
+            </div>
+            <div class="xp-track">
+                <div class="xp-fill" id="xp-fill"></div>
+            </div>
+        </div>
+
+        <!-- Inventaire / Sorts (3 slots) -->
+        <div id="inventory-bar">
+            <div class="inventory-slot" data-slot="0" id="inv-slot-0">
+                <span class="slot-key">1</span>
+                <span class="slot-icon" id="slot-icon-0"></span>
+                <div class="slot-cooldown" id="slot-cooldown-0"></div>
+            </div>
+            <div class="inventory-slot" data-slot="1" id="inv-slot-1">
+                <span class="slot-key">2</span>
+                <span class="slot-icon" id="slot-icon-1"></span>
+                <div class="slot-cooldown" id="slot-cooldown-1"></div>
+            </div>
+            <div class="inventory-slot" data-slot="2" id="inv-slot-2">
+                <span class="slot-key">3</span>
+                <span class="slot-icon" id="slot-icon-2"></span>
+                <div class="slot-cooldown" id="slot-cooldown-2"></div>
+            </div>
+            <button class="pvp-toggle" id="pvp-toggle" title="Activer/Désactiver PvP">⚔️</button>
+        </div>
+
+        <!-- Panel de menu -->
+        <div id="menu-panel" class="panel hidden" aria-hidden="true">
+            <div class="panel-header">
+                <h2>Menu</h2>
+                <button class="panel-close" aria-label="Fermer">×</button>
+            </div>
+            <div class="panel-content">
+                <button class="menu-item" id="menu-profile">
+                    <span class="menu-icon">👤</span>
+                    <span>Mon Profil</span>
+                </button>
+                <button class="menu-item" id="menu-quests">
+                    <span class="menu-icon">🎯</span>
+                    <span>Quêtes</span>
+                </button>
+                <button class="menu-item" id="menu-players">
+                    <span class="menu-icon">👥</span>
+                    <span>Joueurs en ligne</span>
+                </button>
+                <button class="menu-item" id="menu-help">
+                    <span class="menu-icon">❓</span>
+                    <span>Comment jouer</span>
+                </button>
+                <button class="menu-item" id="menu-sound">
+                    <span class="menu-icon">🔊</span>
+                    <span>Son : Activé</span>
+                </button>
+                <button class="menu-item" id="menu-fullscreen">
+                    <span class="menu-icon">⛶</span>
+                    <span>Plein écran</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel de profil -->
+        <div id="profile-panel" class="panel hidden" aria-hidden="true">
+            <div class="panel-header">
+                <h2>Mon Têtard</h2>
+                <button class="panel-close" aria-label="Fermer">×</button>
+            </div>
+            <div class="panel-content">
+                <div class="profile-preview">
+                    <canvas id="preview-canvas" width="100" height="100"></canvas>
+                </div>
+                
+                <!-- Stats du joueur -->
+                <div class="profile-stats">
+                    <div class="stat-row">
+                        <span>🏆 Niveau</span>
+                        <span id="profile-level">1</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>❤️ PV</span>
+                        <span id="profile-hp">100/100</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>⚔️ Attaque</span>
+                        <span id="profile-attack">10</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>🛡️ Défense</span>
+                        <span id="profile-defense">5</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>💀 Kills</span>
+                        <span id="profile-kills">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>📜 Quêtes</span>
+                        <span id="profile-quests">0</span>
+                    </div>
+                </div>
+                
+                <!-- Inventaire dans le profil -->
+                <div class="profile-inventory">
+                    <h4>🎒 Mon Sac</h4>
+                    <div class="profile-slots">
+                        <div class="profile-slot" id="profile-slot-0">
+                            <span class="profile-slot-icon"></span>
+                        </div>
+                        <div class="profile-slot" id="profile-slot-1">
+                            <span class="profile-slot-icon"></span>
+                        </div>
+                        <div class="profile-slot" id="profile-slot-2">
+                            <span class="profile-slot-icon"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="profile-name">Nom du têtard</label>
+                    <input type="text" id="profile-name" maxlength="16" placeholder="Ton pseudo..." autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>Couleur</label>
+                    <div class="color-picker">
+                        <input type="color" id="profile-color" value="#8ce6de">
+                        <div id="color-swatches" class="color-swatches"></div>
+                    </div>
+                </div>
+                <button class="btn-primary" id="profile-save">Valider</button>
+            </div>
+        </div>
+
+        <!-- Panel d'aide -->
+        <div id="help-panel" class="panel hidden" aria-hidden="true">
+            <div class="panel-header">
+                <h2>Comment jouer</h2>
+                <button class="panel-close" aria-label="Fermer">×</button>
+            </div>
+            <div class="panel-content help-content">
+                <div class="help-section">
+                    <h3>🎮 Contrôles</h3>
+                    <div class="help-grid">
+                        <div class="help-item">
+                            <span class="key">Souris / Touch</span>
+                            <span>Diriger le têtard</span>
+                        </div>
+                        <div class="help-item">
+                            <span class="key">Clic / Appui</span>
+                            <span>Nager (maintenir)</span>
+                        </div>
+                        <div class="help-item">
+                            <span class="key">Espace</span>
+                            <span>Boost de vitesse</span>
+                        </div>
+                        <div class="help-item">
+                            <span class="key">1, 2, 3</span>
+                            <span>Utiliser sorts/objets</span>
+                        </div>
+                        <div class="help-item">
+                            <span class="key">T / Entrée</span>
+                            <span>Ouvrir le chat</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="help-section">
+                    <h3>🎯 Objectifs</h3>
+                    <ul>
+                        <li>Collecte les <strong>orbes lumineux</strong> pour gagner des points</li>
+                        <li>Termine les <strong>quêtes d'Ovule</strong> pour obtenir des récompenses</li>
+                        <li>Attrape les <strong>bonus dorés</strong> pour des effets spéciaux</li>
+                        <li>Ramasse le <strong>loot</strong> des ennemis vaincus</li>
+                    </ul>
+                </div>
+                <div class="help-section help-combat">
+                    <h3>⚔️ Combat</h3>
+                    <ul>
+                        <li><strong>Monstres</strong> : Crabes 🦀, Méduses 🪼, Requins 🦈</li>
+                        <li><strong>Boss rares</strong> : Poulpe Ancien 🐙, Léviathan 🐉</li>
+                        <li><strong>Sorts</strong> : Bulle 🫧, Vague 🌊, Éclair ⚡, Vortex 🌀</li>
+                        <li><strong>PvP</strong> : Active le mode ⚔️ pour combattre d'autres joueurs</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <h3>🎒 Inventaire</h3>
+                    <ul>
+                        <li>Tu as <strong>3 emplacements</strong> pour objets et sorts</li>
+                        <li>Les objets sont obtenus en tuant des monstres ou en achetant chez Ovule</li>
+                        <li>Les sorts ont un <strong>temps de recharge</strong> après utilisation</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <h3>💡 Astuces</h3>
+                    <ul>
+                        <li>Parle à <strong>Ovule</strong> pour accepter des quêtes</li>
+                        <li>Monte de <strong>niveau</strong> pour augmenter tes stats</li>
+                        <li>Les <strong>boss</strong> donnent les meilleures récompenses</li>
+                        <li>Utilise le bouclier 🛡️ contre les boss dangereux</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel des joueurs -->
+        <div id="players-panel" class="panel hidden" aria-hidden="true">
+            <div class="panel-header">
+                <h2>Joueurs en ligne</h2>
+                <button class="panel-close" aria-label="Fermer">×</button>
+            </div>
+            <div class="panel-content">
+                <ul id="player-list" class="player-list"></ul>
+                <div id="player-list-empty" class="empty-state">Aucun joueur pour le moment</div>
+                <div id="private-message-area" class="hidden">
+                    <div id="private-target" class="pm-target"></div>
+                    <div class="pm-input-group">
+                        <input type="text" id="private-input" placeholder="Écrire un message..." maxlength="120">
+                        <button id="private-send" class="btn-send">➤</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel d'introduction / NPC -->
+        <div id="intro-panel" class="panel intro-panel hidden" aria-hidden="true">
+            <button class="panel-close" aria-label="Fermer">✕</button>
+            <div class="npc-bubble">
+                <div class="npc-avatar">
+                    <div class="ovule-shape"></div>
+                </div>
+                <div class="npc-content">
+                    <h3>Ovule le Guide</h3>
+                    <p id="npc-text">Bienvenue, petit têtard ! Je suis Ovule, ton guide dans ce monde aquatique. Comment veux-tu t'appeler ?</p>
+                </div>
+            </div>
+            <div class="intro-form" id="intro-form">
+                <div class="form-group">
+                    <input type="text" id="intro-name" maxlength="16" placeholder="Ton nom de têtard..." autocomplete="off">
+                </div>
+                <button class="btn-primary btn-large" id="intro-start">C'est parti ! 🚀</button>
+            </div>
+            <div class="intro-continue hidden" id="intro-continue">
+                <div class="npc-actions">
+                    <button class="btn-primary" id="npc-quests-btn">📜 Voir les quêtes</button>
+                    <button class="btn-secondary" id="npc-shop-btn">🎁 Récompenses</button>
+                </div>
+                <button class="btn-outline btn-large" id="intro-close-btn">Continuer l'aventure 🌊</button>
+            </div>
+        </div>
+
+        <!-- Panel de choix de couleur (après 3 quêtes) -->
+        <div id="color-unlock-panel" class="panel color-unlock-panel hidden" aria-hidden="true">
+            <div class="npc-bubble">
+                <div class="npc-avatar">
+                    <div class="ovule-shape"></div>
+                </div>
+                <div class="npc-content">
+                    <h3>Félicitations !</h3>
+                    <p>Tu as prouvé ta valeur, jeune têtard ! Il est temps de choisir ta couleur définitive. Choisis bien, ce sera ton identité !</p>
+                </div>
+            </div>
+            <div class="color-unlock-form">
+                <div class="form-group">
+                    <label>Choisis ta couleur</label>
+                    <div class="color-picker-large">
+                        <input type="color" id="unlock-color" value="#8ce6de">
+                    </div>
+                    <div id="unlock-color-swatches" class="color-swatches-large"></div>
+                </div>
+                <div class="color-preview-large">
+                    <canvas id="unlock-preview-canvas" width="120" height="120"></canvas>
+                </div>
+                <button class="btn-primary btn-large" id="unlock-color-save">Confirmer ma couleur 🎨</button>
+                <p class="color-warning">⚠️ Ce choix sera presque définitif !</p>
+            </div>
+        </div>
+
+        <!-- Panel des Quêtes d'Ovule -->
+        <div id="quests-panel" class="panel quests-panel hidden" aria-hidden="true">
+            <div class="panel-header">
+                <h2>🎯 Quêtes d'Ovule</h2>
+                <button class="panel-close" aria-label="Fermer">×</button>
+            </div>
+            <div class="npc-bubble small">
+                <div class="npc-avatar small">
+                    <div class="ovule-shape"></div>
+                </div>
+                <div class="npc-content">
+                    <p id="quest-npc-text">Voici les missions disponibles ! Choisis-en une et rapporte-moi ta réussite pour une récompense !</p>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div class="quests-tabs">
+                    <button class="quest-tab active" data-tab="available">Disponibles</button>
+                    <button class="quest-tab" data-tab="active">En cours</button>
+                    <button class="quest-tab" data-tab="completed">Terminées</button>
+                </div>
+                <div id="quests-list" class="quests-list">
+                    <!-- Quêtes générées dynamiquement -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel des Récompenses d'Ovule (Shop) -->
+        <div id="rewards-panel" class="panel rewards-panel hidden" aria-hidden="true">
+            <div class="panel-header">
+                <h2>🎁 Boutique d'Ovule</h2>
+                <button class="panel-close" aria-label="Fermer">×</button>
+            </div>
+            <div class="npc-bubble small">
+                <div class="npc-avatar small">
+                    <div class="ovule-shape"></div>
+                </div>
+                <div class="npc-content">
+                    <p>Échange tes gemmes contre des objets précieux ! Tu as <span id="shop-gems-count">0</span> 💎</p>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div id="rewards-list" class="rewards-list">
+                    <!-- Récompenses générées dynamiquement -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat -->
+        <div id="chat-container">
+            <div id="chat-log" aria-live="polite"></div>
+            <div id="chat-input-area" class="hidden">
+                <input type="text" id="chat-input" placeholder="Écrire un message..." maxlength="200" autocomplete="off">
+                <button id="chat-send" class="btn-send">➤</button>
+            </div>
+        </div>
+        <button id="chat-toggle" class="floating-btn" aria-label="Chat">
+            <span>💬</span>
+            <span class="chat-badge hidden">!</span>
+        </button>
+
+        <!-- Joystick virtuel (mobile) -->
+        <div id="virtual-joystick" class="hidden">
+            <div class="joystick-base">
+                <div class="joystick-stick"></div>
+            </div>
+        </div>
+        
+        <!-- Bouton boost mobile -->
+        <button id="boost-btn" class="floating-btn boost-floating hidden" aria-label="Boost">
+            <span>⚡</span>
+        </button>
+
+        <!-- Toasts -->
+        <div id="toast-container" aria-live="polite"></div>
+
+        <!-- Écran de déconnexion -->
+        <div id="disconnect-screen" class="hidden">
+            <div class="disconnect-content">
+                <div class="disconnect-icon">📡</div>
+                <h2>Connexion perdue</h2>
+                <p>Tentative de reconnexion...</p>
+                <div class="loader-dots">
+                    <span></span><span></span><span></span>
+                </div>
+                <button id="reconnect-btn" class="btn-primary">Reconnecter</button>
+            </div>
+        </div>
+
+        <!-- Navigateur non supporté -->
+        <div id="unsupported-browser" class="hidden">
+            <div class="unsupported-content">
+                <h2>Navigateur non supporté</h2>
+                <p>Ce jeu nécessite un navigateur moderne avec support WebSocket.</p>
+                <div class="browser-list">
+                    <a href="https://www.google.com/chrome" target="_blank">Chrome</a>
+                    <a href="https://www.mozilla.org/firefox" target="_blank">Firefox</a>
+                    <a href="https://www.apple.com/safari" target="_blank">Safari</a>
+                    <a href="https://www.microsoft.com/edge" target="_blank">Edge</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/lib/parseUri.js"></script>
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/Model.js"></script>
+    <script src="/js/Settings.js"></script>
+    <script src="/js/Keys.js"></script>
+    <script src="/js/WebSocketService.js"></script>
+    <script src="/js/Camera.js"></script>
+    <script src="/js/Tadpole.js"></script>
+    <script src="/js/TadpoleTail.js"></script>
+    <script src="/js/TadpolePunch.js"></script>
+    <script src="/js/Message.js"></script>
+    <script src="/js/WaterParticle.js"></script>
+    <script src="/js/Arrow.js"></script>
+    <script src="/js/Cookie.js"></script>
+    <script src="/js/GameSystems.js"></script>
+    <script src="/js/App.js"></script>
+    <script src="/js/game.js"></script>
+</body>
+</html>
