@@ -21,7 +21,11 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 			clearTimeout(reconnectTimeoutId);
 			reconnectTimeoutId = null;
 		}
+		// Support both old and new UI
 		$('#cant-connect').fadeOut(300);
+		if (window.hideDisconnected) {
+			window.hideDisconnected();
+		}
 
 		if (model.userTadpole.id !== -1 && model.userTadpole.id !== data.id) {
 			model.tadpoles = {};
@@ -33,7 +37,10 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		model.tadpoles[data.id] = model.tadpoles[-1];
 		delete model.tadpoles[-1];
 
-		$('#chat').initChat();
+		// Only init chat for old UI
+		if ($('#chat').initChat) {
+			$('#chat').initChat();
+		}
 		var storedName = localStorage.getItem('tadpole_name') || $.cookie('todpole_name');
 		var storedColor = localStorage.getItem('tadpole_color') || $.cookie('tadpole_color');
 		if (storedColor) {
@@ -153,6 +160,23 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		}
 	}
 
+	// Handler for common orb collection broadcast
+	this.orbHandler = function(data) {
+		if (data.orbId && model.collectedCommonOrbs) {
+			model.collectedCommonOrbs[data.orbId] = true;
+		}
+	}
+
+	// Send orb collection to other players
+	this.sendOrbCollected = function(orbId) {
+		if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+			webSocket.send(JSON.stringify({
+				type: 'orb',
+				orbId: orbId
+			}));
+		}
+	}
+
 	this.processMessage = function(data) {
 		var fn = webSocketService[data.type + 'Handler'];
 		if (fn) {
@@ -188,7 +212,11 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 
 	this.connectionClosed = function() {
 		webSocketService.hasConnection = false;
+		// Support both old and new UI
 		$('#cant-connect').fadeIn(300);
+		if (window.showDisconnected) {
+			window.showDisconnected();
+		}
 		if (!reconnectHandler || reconnectTimeoutId) {
 			return;
 		}

@@ -1,4 +1,13 @@
+// Initialize global debug flag
+window.debug = false;
 
+// Universal input state
+window.inputState = {
+	isMoving: false,
+	targetX: 0,
+	targetY: 0,
+	useJoystick: false
+};
 
 var App = function(aSettings, aCanvas) {
 	var app = this;
@@ -8,7 +17,7 @@ var App = function(aSettings, aCanvas) {
 			context,
 			webSocket,
 			webSocketService,
-			mouse = {x: 0, y: 0, worldx: 0, worldy: 0, tadpole:null},
+			mouse = {x: 0, y: 0, worldx: 0, worldy: 0, tadpole:null, clicking: false},
 			keyNav = {x:0,y:0},
 			messageQuota = 5
 	;
@@ -68,20 +77,26 @@ var App = function(aSettings, aCanvas) {
 		updateCollectibles();
 		updateQuestUI();
 
+		// NPC Ovule interaction
 		var npc = model.tadpoles['npc-guide'];
-		if (npc && !model.npcTriggered) {
+		if (npc) {
 			var dx = model.userTadpole.x - npc.x;
 			var dy = model.userTadpole.y - npc.y;
 			var npcDistance = Math.sqrt(dx * dx + dy * dy);
-			npc.isClose = npcDistance < 24;
-			if (npcDistance < 20) {
-				model.npcTriggered = true;
+			npc.isClose = npcDistance < 30;
+			
+			// Allow re-triggering after 10 seconds cooldown
+			var now = Date.now();
+			if (!model.npcCooldownUntil) {
+				model.npcCooldownUntil = 0;
+			}
+			
+			if (npcDistance < 20 && now > model.npcCooldownUntil) {
+				model.npcCooldownUntil = now + 10000; // 10 second cooldown
 				if (window.openNpcDialog) {
 					window.openNpcDialog();
 				}
 			}
-		} else if (npc) {
-			npc.isClose = false;
 		}
 	};
 	
@@ -96,6 +111,11 @@ var App = function(aSettings, aCanvas) {
 		}
 
 		drawCollectibles();
+		
+		// Draw GameSystems (mobs, projectiles, loot)
+		if (window.GameSystems && window.GameSystems.combat) {
+			window.GameSystems.combat.draw(context, model.camera);
+		}
 		
 		// Draw tadpoles
 		for(id in model.tadpoles) {
@@ -178,36 +198,63 @@ var App = function(aSettings, aCanvas) {
 	}
 	
 	app.mousedown = function(e) {
+		// Ignore if touching UI elements
+		if (e.target && e.target.closest && e.target.closest('#game-ui, .panel, #virtual-joystick, #boost-btn, #chat-container')) {
+			return;
+		}
+		
+		e.preventDefault();
 		mouse.clicking = true;
+		window.inputState.isMoving = true;
+		window.inputState.useJoystick = false;
+
+		// Update mouse position
+		mouse.x = e.clientX;
+		mouse.y = e.clientY;
 
 		if(mouse.tadpole && mouse.tadpole.hover && mouse.tadpole.onclick(e)) {
             return;
 		}
-		if(model.userTadpole && e.which == 1) {
+		if(model.userTadpole && (e.which == 1 || e.button === 0 || e.type === 'mousedown')) {
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 		}
-
-
 	};
 	
 	app.mouseup = function(e) {
-		if(model.userTadpole && e.which == 1) {
+		mouse.clicking = false;
+		window.inputState.isMoving = false;
+		if(model.userTadpole) {
 			model.userTadpole.targetMomentum = 0;
 		}
 	};
 	
 	app.mousemove = function(e) {
+		// Always update mouse position for direction, even without click
 		mouse.x = e.clientX;
 		mouse.y = e.clientY;
+		
+		// If mouse is held down and not using joystick, keep moving
+		if (mouse.clicking && !window.inputState.useJoystick) {
+			window.inputState.isMoving = true;
+			if (model.userTadpole && model.userTadpole.targetMomentum === 0) {
+				model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
+			}
+		}
 	};
 
 	app.keydown = function(e) {
-		if(e.keyCode == keys.up) {
+		// Don't handle keys if typing in input
+		var targetTag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
+		if (targetTag === 'input' || targetTag === 'textarea') {
+			return;
+		}
+		
+		if(e.keyCode == keys.up || e.keyCode == 87) { // W
 			keyNav.y = -1;
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 			e.preventDefault();
 		}
-		else if(e.keyCode == keys.down) {
+		else if(e.keyCode == keys.down || e.keyCode == 83) { // S
 			keyNav.y = 1;
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 			e.preventDefault();
@@ -218,27 +265,28 @@ var App = function(aSettings, aCanvas) {
 				model.boostUntil = now + 1000;
 				model.boostCooldownUntil = now + 5000;
 			}
+			e.preventDefault();
 		}
-		else if(e.keyCode == keys.left) {
+		else if(e.keyCode == keys.left || e.keyCode == 65) { // A
 			keyNav.x = -1;
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 			e.preventDefault();
 		}
-		else if(e.keyCode == keys.right) {
+		else if(e.keyCode == keys.right || e.keyCode == 68) { // D
 			keyNav.x = 1;
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 			e.preventDefault();
 		}
 	};
 	app.keyup = function(e) {
-		if(e.keyCode == keys.up || e.keyCode == keys.down) {
+		if(e.keyCode == keys.up || e.keyCode == keys.down || e.keyCode == 87 || e.keyCode == 83) {
 			keyNav.y = 0;
 			if(keyNav.x == 0 && keyNav.y == 0) {
 				model.userTadpole.targetMomentum = 0;
 			}
 			e.preventDefault();
 		}
-		else if(e.keyCode == keys.left || e.keyCode == keys.right) {
+		else if(e.keyCode == keys.left || e.keyCode == keys.right || e.keyCode == 65 || e.keyCode == 68) {
 			keyNav.x = 0;
 			if(keyNav.x == 0 && keyNav.y == 0) {
 				model.userTadpole.targetMomentum = 0;
@@ -248,32 +296,57 @@ var App = function(aSettings, aCanvas) {
 	};
 	
 	app.touchstart = function(e) {
-	  e.preventDefault();
-	  mouse.clicking = true;		
+		// Don't handle touch if on UI elements (joystick handles its own events)
+		if (e.target && e.target.closest && e.target.closest('#game-ui, .panel, #virtual-joystick, #boost-btn, #chat-container')) {
+			return;
+		}
+		
+		e.preventDefault();
+		mouse.clicking = true;
+		window.inputState.isMoving = true;
+		window.inputState.useJoystick = false;
+		
+		var touch = e.changedTouches ? e.changedTouches.item(0) : e.touches[0];
+		if (touch) {
+			mouse.x = touch.clientX;
+			mouse.y = touch.clientY;
+		}
 		
 		if(model.userTadpole) {
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 		}
-		
-		var touch = e.changedTouches.item(0);
-    if (touch) {
-      mouse.x = touch.clientX;
-  		mouse.y = touch.clientY;
-    }    
 	}
 	app.touchend = function(e) {
-	  if(model.userTadpole) {
+		// Don't stop if joystick is still active
+		if (window.inputState.useJoystick) return;
+		
+		mouse.clicking = false;
+		window.inputState.isMoving = false;
+		if(model.userTadpole) {
 			model.userTadpole.targetMomentum = 0;
 		}
 	}
 	app.touchmove = function(e) {
-	  e.preventDefault();
-    
-    var touch = e.changedTouches.item(0);
-    if (touch) {
-      mouse.x = touch.clientX;
-  		mouse.y = touch.clientY;
-    }		
+		// Don't update if using joystick
+		if (window.inputState.useJoystick) return;
+		
+		// Don't handle touch if on UI elements
+		if (e.target && e.target.closest && e.target.closest('#game-ui, .panel, #virtual-joystick, #boost-btn, #chat-container')) {
+			return;
+		}
+		
+		e.preventDefault();
+		
+		var touch = e.changedTouches ? e.changedTouches.item(0) : e.touches[0];
+		if (touch) {
+			mouse.x = touch.clientX;
+			mouse.y = touch.clientY;
+		}
+		
+		// Ensure movement continues
+		if (model.userTadpole && window.inputState.isMoving) {
+			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
+		}
 	}
 
 	app.console = function(e) {
@@ -295,18 +368,51 @@ var App = function(aSettings, aCanvas) {
 
 	app.resize = function(e) {
 		resizeCanvas();
+		if (model.camera) {
+			model.camera.updateBounds(canvas.width, canvas.height);
+		}
 	};
+
+	// Expose model for external access
+	app.model = null;
 	
 	var getMouseWorldPosition = function() {
-		return {
-			x: (mouse.x + (model.camera.x * model.camera.zoom - canvas.width / 2)) / model.camera.zoom,
-			y: (mouse.y + (model.camera.y * model.camera.zoom  - canvas.height / 2)) / model.camera.zoom
+		// Support virtual joystick - calculate world position from joystick direction
+		if (window.inputState.useJoystick && window.joystickTarget) {
+			// Joystick gives a direction, so we calculate a target point in that direction
+			var joyX = window.joystickTarget.dx || 0;
+			var joyY = window.joystickTarget.dy || 0;
+			
+			// Target is tadpole position + joystick direction * distance
+			return {
+				x: model.userTadpole.x + joyX * 100,
+				y: model.userTadpole.y + joyY * 100
+			};
 		}
+		
+		// Standard mouse/touch position converted to world coordinates
+		var canvasRect = canvas.getBoundingClientRect();
+		var scaleX = canvas.width / canvasRect.width;
+		var scaleY = canvas.height / canvasRect.height;
+		
+		var canvasX = (mouse.x - canvasRect.left) * scaleX;
+		var canvasY = (mouse.y - canvasRect.top) * scaleY;
+		
+		return {
+			x: (canvasX + (model.camera.x * model.camera.zoom - canvas.width / 2)) / model.camera.zoom,
+			y: (canvasY + (model.camera.y * model.camera.zoom - canvas.height / 2)) / model.camera.zoom
+		};
 	}
 	
 	var resizeCanvas = function() {
-		canvas.width = window.innerWidth;
-		canvas.height = window.innerHeight;
+		var dpr = window.devicePixelRatio || 1;
+		var w = window.innerWidth;
+		var h = window.innerHeight;
+		canvas.width = w * dpr;
+		canvas.height = h * dpr;
+		canvas.style.width = w + 'px';
+		canvas.style.height = h + 'px';
+		context.scale(dpr, dpr);
 	};
 
 	var updateCollectibles = function() {
@@ -330,6 +436,12 @@ var App = function(aSettings, aCanvas) {
 				if (model.questCollected >= model.questTarget) {
 					handleQuestComplete();
 				}
+				
+				// Update GameSystems quests
+				if (window.GameSystems && window.GameSystems.questManager) {
+					window.GameSystems.questManager.updateProgress('collect', 'orb', 1);
+					window.GameSystems.playerStats.orbsCollected++;
+				}
 			}
 		}
 
@@ -344,6 +456,10 @@ var App = function(aSettings, aCanvas) {
 				if (Math.sqrt(dxCommon * dxCommon + dyCommon * dyCommon) < model.userTadpole.size + commonOrb.r + bonusMagnet) {
 					model.collectedCommonOrbs[commonOrb.id] = true;
 					applyCommonBonus(commonOrb);
+					// Broadcast to other players
+					if (webSocketService && webSocketService.sendOrbCollected) {
+						webSocketService.sendOrbCollected(commonOrb.id);
+					}
 				}
 			}
 		}
@@ -399,10 +515,26 @@ var App = function(aSettings, aCanvas) {
 	var handleQuestComplete = function() {
 		model.gems += 1;
 		localStorage.setItem('tadpole_gems', model.gems);
+		
+		// Track quests completed
+		var questsCompleted = parseInt(localStorage.getItem('tadpole_quests_completed') || '0', 10);
+		questsCompleted += 1;
+		localStorage.setItem('tadpole_quests_completed', questsCompleted.toString());
+		
 		showToast('Quête terminée ! +1 Gemme');
 		unlockNextColor();
 		model.questCollected = 0;
 		model.questTarget += 2;
+		
+		// After 3rd quest, offer color choice if not already chosen
+		var hasChosenColor = localStorage.getItem('tadpole_color_chosen');
+		if (questsCompleted === 3 && !hasChosenColor) {
+			setTimeout(function() {
+				if (window.showColorUnlockPanel) {
+					window.showColorUnlockPanel();
+				}
+			}, 1500);
+		}
 	};
 
 	var showToast = function(message) {
@@ -602,6 +734,34 @@ var App = function(aSettings, aCanvas) {
 		model.camera = new Camera(canvas, context, model.userTadpole.x, model.userTadpole.y);
 		
 		model.arrows = {};
+		
+		// Create NPC guide (Ovule)
+		var npcGuide = new Tadpole();
+		npcGuide.id = 'npc-guide';
+		npcGuide.name = 'Ovule';
+		npcGuide.color = '#f6d28c';
+		npcGuide.x = 80;
+		npcGuide.y = 80;
+		npcGuide.size = 6;
+		npcGuide.isNpc = true;
+		npcGuide.isOvule = true;
+		npcGuide.momentum = 0;
+		npcGuide.targetMomentum = 0;
+		model.tadpoles[npcGuide.id] = npcGuide;
+		model.npcTriggered = false;
+		
+		// Expose model for external access
+		app.model = model;
+		
+		// Initialize user tadpole with saved data
+		var savedName = localStorage.getItem('tadpole_name');
+		var savedColor = localStorage.getItem('tadpole_color');
+		if (savedName) {
+			model.userTadpole.name = savedName;
+		}
+		if (savedColor) {
+			model.userTadpole.color = savedColor;
+		}
 		
 		connectSocket();
 	})();

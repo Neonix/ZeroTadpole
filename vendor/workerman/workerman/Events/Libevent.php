@@ -172,9 +172,11 @@ class Libevent implements EventInterface
         try {
             \call_user_func_array($this->_eventTimer[$timer_id][0], $this->_eventTimer[$timer_id][1]);
         } catch (\Exception $e) {
-            Worker::stopAll(250, $e);
+            Worker::log($e);
+            exit(250);
         } catch (\Error $e) {
-            Worker::stopAll(250, $e);
+            Worker::log($e);
+            exit(250);
         }
         if (isset($this->_eventTimer[$timer_id]) && $this->_eventTimer[$timer_id][3] === self::EV_TIMER_ONCE) {
             $this->del($timer_id, self::EV_TIMER_ONCE);

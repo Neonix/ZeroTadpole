@@ -119,7 +119,7 @@ abstract class  ConnectionInterface
     /**
      * Close connection.
      *
-     * @param string|null $data
+     * @param $data
      * @return void
      */
     abstract public function close($data = null);

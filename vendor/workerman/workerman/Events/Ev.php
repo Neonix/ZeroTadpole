@@ -59,9 +59,11 @@ class Ev implements EventInterface
             try {
                 \call_user_func($func, $fd);
             } catch (\Exception $e) {
-                Worker::stopAll(250, $e);
+                Worker::log($e);
+                exit(250);
             } catch (\Error $e) {
-                Worker::stopAll(250, $e);
+                Worker::log($e);
+                exit(250);
             }
         };
         switch ($flag) {
@@ -138,9 +140,11 @@ class Ev implements EventInterface
         try {
             \call_user_func_array($param[0], $param[1]);
         } catch (\Exception $e) {
-            Worker::stopAll(250, $e);
+            Worker::log($e);
+            exit(250);
         } catch (\Error $e) {
-            Worker::stopAll(250, $e);
+            Worker::log($e);
+            exit(250);
         }
     }
 
@@ -174,7 +178,9 @@ class Ev implements EventInterface
      */
     public function destroy()
     {
-        \Ev::stop(\Ev::BREAK_ALL);
+        foreach ($this->_allEvents as $event) {
+            $event->stop();
+        }
     }
 
     /**

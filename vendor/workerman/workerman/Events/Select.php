@@ -13,9 +13,6 @@
  */
 namespace Workerman\Events;
 
-use Throwable;
-use Workerman\Worker;
-
 /**
  * select eventloop
  */
@@ -146,9 +143,8 @@ class Select implements EventInterface
                 $this->_scheduler->insert($timer_id, -$run_time);
                 $this->_eventTimer[$timer_id] = array($func, (array)$args, $flag, $fd);
                 $select_timeout = ($run_time - \microtime(true)) * 1000000;
-                $select_timeout = $select_timeout <= 0 ? 1 : $select_timeout;
                 if( $this->_selectTimeout > $select_timeout ){ 
-                    $this->_selectTimeout = (int) $select_timeout;   
+                    $this->_selectTimeout = $select_timeout;   
                 }  
                 return $timer_id;
         }
@@ -214,13 +210,12 @@ class Select implements EventInterface
      */
     protected function tick()
     {
-        $tasks_to_insert = [];
         while (!$this->_scheduler->isEmpty()) {
             $scheduler_data       = $this->_scheduler->top();
             $timer_id             = $scheduler_data['data'];
             $next_run_time        = -$scheduler_data['priority'];
             $time_now             = \microtime(true);
-            $this->_selectTimeout = (int) (($next_run_time - $time_now) * 1000000);
+            $this->_selectTimeout = ($next_run_time - $time_now) * 1000000;
             if ($this->_selectTimeout <= 0) {
                 $this->_scheduler->extract();
 
@@ -232,28 +227,14 @@ class Select implements EventInterface
                 $task_data = $this->_eventTimer[$timer_id];
                 if ($task_data[2] === self::EV_TIMER) {
                     $next_run_time = $time_now + $task_data[3];
-                    $tasks_to_insert[] = [$timer_id, -$next_run_time];
+                    $this->_scheduler->insert($timer_id, -$next_run_time);
                 }
-                try {
-                    \call_user_func_array($task_data[0], $task_data[1]);
-                } catch (Throwable $e) {
-                    Worker::stopAll(250, $e);
-                }
+                \call_user_func_array($task_data[0], $task_data[1]);
                 if (isset($this->_eventTimer[$timer_id]) && $task_data[2] === self::EV_TIMER_ONCE) {
                     $this->del($timer_id, self::EV_TIMER_ONCE);
                 }
-            } else {
-                break;
+                continue;
             }
-        }
-        foreach ($tasks_to_insert as $item) {
-            $this->_scheduler->insert($item[0], $item[1]);
-        }
-        if (!$this->_scheduler->isEmpty()) {
-            $scheduler_data       = $this->_scheduler->top();
-            $next_run_time        = -$scheduler_data['priority'];
-            $time_now             = \microtime(true);
-            $this->_selectTimeout = \max((int) (($next_run_time - $time_now) * 1000000), 0);
             return;
         }
         $this->_selectTimeout = 100000000;
@@ -280,20 +261,20 @@ class Select implements EventInterface
                 \pcntl_signal_dispatch();
             }
 
-            $read   = $this->_readFds;
-            $write  = $this->_writeFds;
+            $read  = $this->_readFds;
+            $write = $this->_writeFds;
             $except = $this->_exceptFds;
-            $ret    = false;
 
             if ($read || $write || $except) {
                 // Waiting read/write/signal/timeout events.
-                try {
-                    $ret = @stream_select($read, $write, $except, 0, $this->_selectTimeout);
-                } catch (\Exception $e) {} catch (\Error $e) {}
-
+                set_error_handler(function(){});
+                $ret = stream_select($read, $write, $except, 0, $this->_selectTimeout);
+                restore_error_handler();
             } else {
-                $this->_selectTimeout >= 1 && usleep($this->_selectTimeout);
+                usleep($this->_selectTimeout);
+                $ret = false;
             }
+
 
             if (!$this->_scheduler->isEmpty()) {
                 $this->tick();

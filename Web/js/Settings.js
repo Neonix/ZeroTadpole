@@ -1,14 +1,31 @@
-// 此文件下载者不用更改，兼容其他域名使用
+// Configuration du serveur WebSocket
 var Settings = function() {
-	// 如果是workerman.net phpgame.cn域名 则采用多个接入端随机负载均衡
-	var domain_arr = ['', ''];
-	if(0 <= $.inArray(document.domain, domain_arr))
-	{
-		this.socketServer = 'ws://'+domain_arr[Math.floor(Math.random() * domain_arr.length + 1)-1]+':8282';
+	var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+	var domain = document.domain;
+	var port = 8282;
+	
+	// Configuration flexible pour différents environnements
+	var knownDomains = ['workerman.net', 'phpgame.cn'];
+	var isKnownDomain = knownDomains.some(function(d) { 
+		return domain.indexOf(d) !== -1; 
+	});
+	
+	if (isKnownDomain) {
+		// Charge balancing pour les domaines connus
+		var servers = knownDomains.filter(function(d) { 
+			return domain.indexOf(d) !== -1; 
+		});
+		var selectedServer = servers[Math.floor(Math.random() * servers.length)];
+		this.socketServer = protocol + '//' + selectedServer + ':' + port;
+	} else {
+		// Utiliser le domaine actuel
+		this.socketServer = protocol + '//' + domain + ':' + port;
 	}
-	else
-	{
-		// 运行在其它域名上
-		this.socketServer = 'ws://'+document.domain+':8282';
+	
+	// Override possible via paramètre URL
+	var urlParams = new URLSearchParams(window.location.search);
+	var customServer = urlParams.get('ws');
+	if (customServer) {
+		this.socketServer = customServer;
 	}
 }

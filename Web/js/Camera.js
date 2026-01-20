@@ -25,7 +25,7 @@ var Camera = function(aCanvas, aContext, x, y) {
 		context.translate(translateX, translateY);
 		context.scale(camera.zoom, camera.zoom);
 		
-		if(debug) {
+		if(window.debug) {
 			drawDebug();
 		}
 	};
@@ -81,6 +81,11 @@ var Camera = function(aCanvas, aContext, x, y) {
 	this.startUILayer = function() {
 		context.setTransform(1,0,0,1,0,0);
 	}
+	
+	// Update canvas reference for resize
+	this.updateBounds = function(newWidth, newHeight) {
+		// Canvas is already updated, just need to ensure camera works with new dimensions
+	};
 	
 	var debugBounds = function(bounds, text) {
 		context.strokeStyle   = '#fff';

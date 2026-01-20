@@ -219,11 +219,16 @@ var Tadpole = function() {
 	var drawOvule = function(context, baseColor, opacity, isActive) {
 		var now = Date.now();
 		var pulse = 0.6 + Math.sin(now * 0.005) * 0.4;
+		var float = Math.sin(now * 0.003) * 2; // Floating animation
+		
 		context.save();
-		context.translate(tadpole.x, tadpole.y);
+		context.translate(tadpole.x, tadpole.y + float);
+		
+		// Main body - oval shape
 		context.scale(1.8, 1.3);
 		var gradient = context.createRadialGradient(-2, -2, 2, 0, 0, tadpole.size + 2);
 		gradient.addColorStop(0, 'rgba(255,255,255,' + opacity + ')');
+		gradient.addColorStop(0.5, 'rgba(247,214,255,' + opacity + ')');
 		gradient.addColorStop(1, baseColor);
 		context.fillStyle = gradient;
 		context.beginPath();
@@ -231,22 +236,84 @@ var Tadpole = function() {
 		context.fill();
 		context.restore();
 
+		// Animated glow ring
 		context.beginPath();
 		context.strokeStyle = 'rgba(255,255,255,' + (0.2 + pulse * 0.5) + ')';
 		context.lineWidth = 2;
-		context.arc(tadpole.x, tadpole.y, tadpole.size + 8 + pulse * 4, 0, Math.PI * 2);
+		context.arc(tadpole.x, tadpole.y + float, tadpole.size + 8 + pulse * 4, 0, Math.PI * 2);
+		context.stroke();
+		
+		// Second smaller ring
+		context.beginPath();
+		context.strokeStyle = 'rgba(186,137,255,' + (0.3 + pulse * 0.3) + ')';
+		context.lineWidth = 1.5;
+		context.arc(tadpole.x, tadpole.y + float, tadpole.size + 14 + pulse * 2, 0, Math.PI * 2);
 		context.stroke();
 
+		// Draw speech indicator when player is close
 		if (isActive) {
+			// Glowing close ring
 			context.beginPath();
-			context.strokeStyle = 'rgba(255,255,255,' + opacity + ')';
-			context.lineWidth = 1.5;
-			context.arc(tadpole.x, tadpole.y, tadpole.size + 5, 0, Math.PI * 2);
+			context.strokeStyle = 'rgba(140,230,222,' + opacity + ')';
+			context.lineWidth = 2;
+			context.arc(tadpole.x, tadpole.y + float, tadpole.size + 4, 0, Math.PI * 2);
 			context.stroke();
+			
+			// Eye sparkle
 			context.beginPath();
 			context.fillStyle = 'rgba(255,255,255,' + opacity + ')';
-			context.arc(tadpole.x + 3, tadpole.y - 2, 2.2, 0, Math.PI * 2);
+			context.arc(tadpole.x + 4, tadpole.y + float - 3, 2.5, 0, Math.PI * 2);
 			context.fill();
+			
+			// Speech bubble indicator
+			var bubbleX = tadpole.x + 18;
+			var bubbleY = tadpole.y + float - 18;
+			var bubbleSize = 8 + Math.sin(now * 0.008) * 2;
+			
+			context.fillStyle = 'rgba(255,255,255,0.9)';
+			context.beginPath();
+			context.arc(bubbleX, bubbleY, bubbleSize, 0, Math.PI * 2);
+			context.fill();
+			
+			// Dots inside bubble
+			context.fillStyle = 'rgba(100,100,100,0.8)';
+			var dotOffset = Math.sin(now * 0.01);
+			context.beginPath();
+			context.arc(bubbleX - 3, bubbleY + dotOffset, 1.5, 0, Math.PI * 2);
+			context.arc(bubbleX, bubbleY - dotOffset, 1.5, 0, Math.PI * 2);
+			context.arc(bubbleX + 3, bubbleY + dotOffset, 1.5, 0, Math.PI * 2);
+			context.fill();
+			
+			// Tail of speech bubble
+			context.fillStyle = 'rgba(255,255,255,0.9)';
+			context.beginPath();
+			context.moveTo(bubbleX - 5, bubbleY + 5);
+			context.lineTo(bubbleX - 10, bubbleY + 12);
+			context.lineTo(bubbleX - 2, bubbleY + 7);
+			context.fill();
+		}
+		
+		// Draw "!" indicator when Ovule has something important to say
+		var hasSeen = localStorage.getItem('tadpole_has_seen');
+		var quests = parseInt(localStorage.getItem('tadpole_quests_completed') || '0', 10);
+		var hasChosenColor = localStorage.getItem('tadpole_color_chosen');
+		
+		if (!hasSeen || (quests >= 3 && !hasChosenColor)) {
+			// Draw exclamation mark
+			var excX = tadpole.x;
+			var excY = tadpole.y + float - 28;
+			var excBounce = Math.abs(Math.sin(now * 0.006)) * 3;
+			
+			context.fillStyle = 'rgba(246,210,140,' + (0.8 + Math.sin(now * 0.005) * 0.2) + ')';
+			context.beginPath();
+			context.arc(excX, excY - excBounce, 6, 0, Math.PI * 2);
+			context.fill();
+			
+			context.fillStyle = '#1a2744';
+			context.font = 'bold 10px Arial';
+			context.textAlign = 'center';
+			context.textBaseline = 'middle';
+			context.fillText('!', excX, excY - excBounce);
 		}
 	};
 

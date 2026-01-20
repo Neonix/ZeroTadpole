@@ -13,10 +13,8 @@
  */
 namespace Workerman\Events;
 
-use Workerman\Worker;
 use Swoole\Event;
 use Swoole\Timer;
-use Swoole\Coroutine;
 
 class Swoole implements EventInterface
 {
@@ -30,13 +28,9 @@ class Swoole implements EventInterface
     protected $_fd = array();
 
     // milisecond
-    public static $signalDispatchInterval = 500;
+    public static $signalDispatchInterval = 200;
 
     protected $_hasSignal = false;
-
-    protected $_readEvents = array();
-
-    protected $_writeEvents = array();
 
     /**
      *
@@ -44,8 +38,11 @@ class Swoole implements EventInterface
      *
      * @see \Workerman\Events\EventInterface::add()
      */
-    public function add($fd, $flag, $func, $args = array())
+    public function add($fd, $flag, $func, $args = null)
     {
+        if (! isset($args)) {
+            $args = array();
+        }
         switch ($flag) {
             case self::EV_SIGNAL:
                 $res = \pcntl_signal($fd, $func, false);
@@ -64,19 +61,9 @@ class Swoole implements EventInterface
                     $this->mapId = 0;
                 }
                 $mapId = $this->mapId++;
-                $t = (int)($fd * 1000);
-                if ($t < 1) {
-                    $t = 1;
-                }
-                $timer_id = Timer::$method($t,
+                $timer_id = Timer::$method($fd * 1000,
                     function ($timer_id = null) use ($func, $args, $mapId) {
-                        try {
-                            \call_user_func_array($func, (array)$args);
-                        } catch (\Exception $e) {
-                            Worker::stopAll(250, $e);
-                        } catch (\Error $e) {
-                            Worker::stopAll(250, $e);
-                        }
+                        \call_user_func_array($func, $args);
                         // EV_TIMER_ONCE
                         if (! isset($timer_id)) {
                             // may be deleted in $func
@@ -97,14 +84,9 @@ class Swoole implements EventInterface
             case self::EV_READ:
             case self::EV_WRITE:
                 $fd_key = (int) $fd;
-                if ($flag === self::EV_READ) {
-                    $this->_readEvents[$fd_key] = $func;
-                } else {
-                    $this->_writeEvents[$fd_key] = $func;
-                }
-                if (!isset($this->_fd[$fd_key])) {
+                if (! isset($this->_fd[$fd_key])) {
                     if ($flag === self::EV_READ) {
-                        $res = Event::add($fd, [$this, 'callRead'], null, SWOOLE_EVENT_READ);
+                        $res = Event::add($fd, $func, null, SWOOLE_EVENT_READ);
                         $fd_type = SWOOLE_EVENT_READ;
                     } else {
                         $res = Event::add($fd, null, $func, SWOOLE_EVENT_WRITE);
@@ -131,42 +113,6 @@ class Swoole implements EventInterface
                     }
                 }
                 return $res;
-        }
-    }
-
-    /**
-     * @param $fd
-     * @return void
-     */
-    protected function callRead($stream)
-    {
-        $fd = (int) $stream;
-        if (isset($this->_readEvents[$fd])) {
-            try {
-                \call_user_func($this->_readEvents[$fd], $stream);
-            } catch (\Exception $e) {
-                Worker::stopAll(250, $e);
-            } catch (\Error $e) {
-                Worker::stopAll(250, $e);
-            }
-        }
-    }
-
-    /**
-     * @param $fd
-     * @return void
-     */
-    protected function callWrite($stream)
-    {
-        $fd = (int) $stream;
-        if (isset($this->_writeEvents[$fd])) {
-            try {
-                \call_user_func($this->_writeEvents[$fd], $stream);
-            } catch (\Exception $e) {
-                Worker::stopAll(250, $e);
-            } catch (\Error $e) {
-                Worker::stopAll(250, $e);
-            }
         }
     }
 
@@ -199,11 +145,6 @@ class Swoole implements EventInterface
             case self::EV_READ:
             case self::EV_WRITE:
                 $fd_key = (int) $fd;
-                if ($flag === self::EV_READ) {
-                    unset($this->_readEvents[$fd_key]);
-                } elseif ($flag === self::EV_WRITE) {
-                    unset($this->_writeEvents[$fd_key]);
-                }
                 if (isset($this->_fd[$fd_key])) {
                     $fd_val = $this->_fd[$fd_key];
                     if ($flag === self::EV_READ) {
@@ -264,12 +205,7 @@ class Swoole implements EventInterface
      */
     public function destroy()
     {
-        foreach (Coroutine::listCoroutines() as $coroutine) {
-            Coroutine::cancel($coroutine);
-        }
-        // Wait for coroutines to exit
-        usleep(100000);
-        Event::exit();
+        //Event::exit();
     }
 
     /**

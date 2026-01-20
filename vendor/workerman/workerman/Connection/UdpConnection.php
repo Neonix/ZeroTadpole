@@ -27,13 +27,6 @@ class UdpConnection extends ConnectionInterface
     public $protocol = null;
 
     /**
-     * Transport layer protocol.
-     *
-     * @var string
-     */
-    public $transport = 'udp';
-
-    /**
      * Udp socket.
      *
      * @var resource
@@ -75,7 +68,7 @@ class UdpConnection extends ConnectionInterface
                 return;
             }
         }
-        return \strlen($send_buffer) === \stream_socket_sendto($this->_socket, $send_buffer, 0, $this->isIpV6() ? '[' . $this->getRemoteIp() . ']:' . $this->getRemotePort() : $this->_remoteAddress);
+        return \strlen($send_buffer) === \stream_socket_sendto($this->_socket, $send_buffer, 0, $this->_remoteAddress);
     }
 
     /**
@@ -194,15 +187,5 @@ class UdpConnection extends ConnectionInterface
             $this->send($data, $raw);
         }
         return true;
-    }
-    
-    /**
-     * Get the real socket.
-     *
-     * @return resource
-     */
-    public function getSocket()
-    {
-        return $this->_socket;
     }
 }

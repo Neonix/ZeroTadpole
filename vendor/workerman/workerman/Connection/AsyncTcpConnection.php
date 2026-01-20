@@ -13,11 +13,10 @@
  */
 namespace Workerman\Connection;
 
-use StdClass;
 use Workerman\Events\EventInterface;
 use Workerman\Lib\Timer;
 use Workerman\Worker;
-use Exception;
+use \Exception;
 
 /**
  * AsyncTcpConnection.
@@ -115,9 +114,6 @@ class AsyncTcpConnection extends TcpConnection
         $address_info = \parse_url($remote_address);
         if (!$address_info) {
             list($scheme, $this->_remoteAddress) = \explode(':', $remote_address, 2);
-            if('unix' === strtolower($scheme)) { 
-                $this->_remoteAddress = substr($remote_address, strpos($remote_address, '/') + 2);
-            }
             if (!$this->_remoteAddress) {
                 Worker::safeEcho(new \Exception('bad remote_address'));
             }
@@ -133,13 +129,11 @@ class AsyncTcpConnection extends TcpConnection
             } else {
                 $address_info['query'] = '?' . $address_info['query'];
             }
+            $this->_remoteAddress = "{$address_info['host']}:{$address_info['port']}";
             $this->_remoteHost    = $address_info['host'];
             $this->_remotePort    = $address_info['port'];
             $this->_remoteURI     = "{$address_info['path']}{$address_info['query']}";
             $scheme               = isset($address_info['scheme']) ? $address_info['scheme'] : 'tcp';
-            $this->_remoteAddress = 'unix' === strtolower($scheme) 
-                                    ? substr($remote_address, strpos($remote_address, '/') + 2)
-                                    : $this->_remoteHost . ':' . $this->_remotePort;
         }
 
         $this->id = $this->_id = self::$_idRecorder++;
@@ -165,7 +159,6 @@ class AsyncTcpConnection extends TcpConnection
         $this->maxSendBufferSize         = self::$defaultMaxSendBufferSize;
         $this->maxPackageSize            = self::$defaultMaxPackageSize;
         $this->_contextOption            = $context_option;
-        $this->context                   = new StdClass;
         static::$connections[$this->_id] = $this;
     }
 
@@ -182,9 +175,6 @@ class AsyncTcpConnection extends TcpConnection
         }
         $this->_status           = self::STATUS_CONNECTING;
         $this->_connectStartTime = \microtime(true);
-        set_error_handler(function() {
-            return false;
-        });
         if ($this->transport !== 'unix') {
             if (!$this->_remotePort) {
                 $this->_remotePort = $this->transport === 'ssl' ? 443 : 80;
@@ -203,7 +193,6 @@ class AsyncTcpConnection extends TcpConnection
             $this->_socket = \stream_socket_client("{$this->transport}://{$this->_remoteAddress}", $errno, $errstr, 0,
                 \STREAM_CLIENT_ASYNC_CONNECT);
         }
-        restore_error_handler();
         // If failed attempt to emit onError callback.
         if (!$this->_socket || !\is_resource($this->_socket)) {
             $this->emitError(\WORKERMAN_CONNECT_FAIL, $errstr);
@@ -287,9 +276,11 @@ class AsyncTcpConnection extends TcpConnection
             try {
                 \call_user_func($this->onError, $this, $code, $msg);
             } catch (\Exception $e) {
-                Worker::stopAll(250, $e);
+                Worker::log($e);
+                exit(250);
             } catch (\Error $e) {
-                Worker::stopAll(250, $e);
+                Worker::log($e);
+                exit(250);
             }
         }
     }
@@ -353,19 +344,23 @@ class AsyncTcpConnection extends TcpConnection
                 try {
                     \call_user_func($this->onConnect, $this);
                 } catch (\Exception $e) {
-                    Worker::stopAll(250, $e);
+                    Worker::log($e);
+                    exit(250);
                 } catch (\Error $e) {
-                    Worker::stopAll(250, $e);
+                    Worker::log($e);
+                    exit(250);
                 }
             }
             // Try to emit protocol::onConnect
-            if ($this->protocol && \method_exists($this->protocol, 'onConnect')) {
+            if (\method_exists($this->protocol, 'onConnect')) {
                 try {
                     \call_user_func(array($this->protocol, 'onConnect'), $this);
                 } catch (\Exception $e) {
-                    Worker::stopAll(250, $e);
+                    Worker::log($e);
+                    exit(250);
                 } catch (\Error $e) {
-                    Worker::stopAll(250, $e);
+                    Worker::log($e);
+                    exit(250);
                 }
             }
         } else {

@@ -135,6 +135,13 @@ class Player extends Character
                 $this->broadcastToZone(new Messages\Chat($this, $msg), false);
             }
         }
+        else if($action === 'orb') {
+            // Broadcast orb collection to other players
+            $orbId = isset($message["orbId"]) ? (string) $message["orbId"] : null;
+            if($orbId !== null) {
+                $this->broadcastToZone(new Messages\Orb($orbId, $this->id), true);
+            }
+        }
         else if($action == TYPES_MESSAGES_MOVE) {
             //var_dump($message);
 
