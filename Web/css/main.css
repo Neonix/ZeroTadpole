@@ -248,6 +248,12 @@ strong {
 	margin-bottom: 4px;
 }
 
+#bonus-status {
+	color: #f6d28c;
+	font-size: 1.1em;
+	opacity: 0.9;
+}
+
 #hud {
 	position: absolute;
 	top: 16px;

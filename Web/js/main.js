@@ -323,11 +323,13 @@ var initSettings = function() {
 	startApp();
 };
 
-if (typeof Settings === 'undefined') {
-	var settingsScript = document.createElement('script');
-	settingsScript.src = '/js/Settings.js';
-	settingsScript.onload = initSettings;
-	document.head.appendChild(settingsScript);
-} else {
-	initSettings();
-}
+window.addEventListener('load', function() {
+	if (typeof Settings === 'undefined') {
+		var settingsScript = document.createElement('script');
+		settingsScript.src = '/js/Settings.js';
+		settingsScript.onload = initSettings;
+		document.head.appendChild(settingsScript);
+	} else {
+		initSettings();
+	}
+});

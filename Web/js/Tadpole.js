@@ -217,26 +217,35 @@ var Tadpole = function() {
 	};
 
 	var drawOvule = function(context, baseColor, opacity, isActive) {
+		var now = Date.now();
+		var pulse = 0.6 + Math.sin(now * 0.005) * 0.4;
 		context.save();
 		context.translate(tadpole.x, tadpole.y);
-		context.scale(1.6, 1.2);
-		var gradient = context.createRadialGradient(-2, -2, 2, 0, 0, tadpole.size);
+		context.scale(1.8, 1.3);
+		var gradient = context.createRadialGradient(-2, -2, 2, 0, 0, tadpole.size + 2);
 		gradient.addColorStop(0, 'rgba(255,255,255,' + opacity + ')');
 		gradient.addColorStop(1, baseColor);
 		context.fillStyle = gradient;
 		context.beginPath();
-		context.arc(0, 0, tadpole.size, 0, Math.PI * 2);
+		context.arc(0, 0, tadpole.size + 1, 0, Math.PI * 2);
 		context.fill();
 		context.restore();
+
+		context.beginPath();
+		context.strokeStyle = 'rgba(255,255,255,' + (0.2 + pulse * 0.5) + ')';
+		context.lineWidth = 2;
+		context.arc(tadpole.x, tadpole.y, tadpole.size + 8 + pulse * 4, 0, Math.PI * 2);
+		context.stroke();
+
 		if (isActive) {
 			context.beginPath();
 			context.strokeStyle = 'rgba(255,255,255,' + opacity + ')';
 			context.lineWidth = 1.5;
-			context.arc(tadpole.x, tadpole.y, tadpole.size + 4, 0, Math.PI * 2);
+			context.arc(tadpole.x, tadpole.y, tadpole.size + 5, 0, Math.PI * 2);
 			context.stroke();
 			context.beginPath();
 			context.fillStyle = 'rgba(255,255,255,' + opacity + ')';
-			context.arc(tadpole.x + 3, tadpole.y - 2, 2, 0, Math.PI * 2);
+			context.arc(tadpole.x + 3, tadpole.y - 2, 2.2, 0, Math.PI * 2);
 			context.fill();
 		}
 	};

@@ -16,12 +16,16 @@ var App = function(aSettings, aCanvas) {
 	var questEl = document.getElementById('quest-progress');
 	var boostEl = document.getElementById('boost-status');
 	var gemsEl = document.getElementById('gems-value');
+	var bonusEl = document.getElementById('bonus-status');
 	
 	app.update = function() {
 	  if (messageQuota < 5 && model.userTadpole.age % 50 == 0) { messageQuota++; }
 	  var now = Date.now();
+	  var bonusActive = model.bonusActiveUntil && now < model.bonusActiveUntil;
 	  if (model.boostUntil && now < model.boostUntil && model.userTadpole.targetMomentum > 0) {
 			model.userTadpole.targetMomentum = model.userTadpole.maxMomentum * 1.8;
+	  } else if (bonusActive && model.userTadpole.targetMomentum > 0) {
+			model.userTadpole.targetMomentum = model.userTadpole.maxMomentum * 1.5;
 	  } else if (model.userTadpole.targetMomentum > model.userTadpole.maxMomentum) {
 			model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 	  }
@@ -309,20 +313,15 @@ var App = function(aSettings, aCanvas) {
 		if (!model.collectibles) {
 			model.collectibles = [];
 		}
-		if (model.collectibles.length < 12) {
-			for (var i = model.collectibles.length; i < 12; i++) {
-				model.collectibles.push({
-					x: model.userTadpole.x + (Math.random() * 120 - 60),
-					y: model.userTadpole.y + (Math.random() * 120 - 60),
-					r: 2 + Math.random() * 2
-				});
-			}
-		}
+		ensureCollectibles();
+		updateCommonOrbs();
+		var now = Date.now();
+		var bonusMagnet = model.bonusActiveUntil && now < model.bonusActiveUntil ? 10 : 0;
 		for (var j = model.collectibles.length - 1; j >= 0; j--) {
 			var orb = model.collectibles[j];
 			var dx = model.userTadpole.x - orb.x;
 			var dy = model.userTadpole.y - orb.y;
-			if (Math.sqrt(dx * dx + dy * dy) < model.userTadpole.size + orb.r) {
+			if (Math.sqrt(dx * dx + dy * dy) < model.userTadpole.size + orb.r + bonusMagnet) {
 				model.collectibles.splice(j, 1);
 				model.score += 1;
 				if (model.questCollected < model.questTarget) {
@@ -333,19 +332,42 @@ var App = function(aSettings, aCanvas) {
 				}
 			}
 		}
+
+		if (model.commonOrbs) {
+			for (var k = model.commonOrbs.length - 1; k >= 0; k--) {
+				var commonOrb = model.commonOrbs[k];
+				if (model.collectedCommonOrbs[commonOrb.id]) {
+					continue;
+				}
+				var dxCommon = model.userTadpole.x - commonOrb.x;
+				var dyCommon = model.userTadpole.y - commonOrb.y;
+				if (Math.sqrt(dxCommon * dxCommon + dyCommon * dyCommon) < model.userTadpole.size + commonOrb.r + bonusMagnet) {
+					model.collectedCommonOrbs[commonOrb.id] = true;
+					applyCommonBonus(commonOrb);
+				}
+			}
+		}
 	};
 
 	var drawCollectibles = function() {
 		if (!model.collectibles) {
 			return;
 		}
+		var now = Date.now();
 		for (var i = 0; i < model.collectibles.length; i++) {
 			var orb = model.collectibles[i];
+			var pulse = 1 + Math.sin(now * 0.004 + orb.pulseOffset) * 0.2;
+			var radius = orb.r * pulse;
 			context.beginPath();
-			context.fillStyle = 'rgba(140,230,222,0.7)';
-			context.arc(orb.x, orb.y, orb.r, 0, Math.PI * 2);
+			var gradient = context.createRadialGradient(orb.x - 2, orb.y - 2, 1, orb.x, orb.y, radius);
+			gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+			gradient.addColorStop(1, 'rgba(140,230,222,0.7)');
+			context.fillStyle = gradient;
+			context.arc(orb.x, orb.y, radius, 0, Math.PI * 2);
 			context.fill();
 		}
+
+		drawCommonOrbs();
 	};
 
 	var updateQuestUI = function() {
@@ -361,6 +383,16 @@ var App = function(aSettings, aCanvas) {
 		if (boostEl) {
 			var now = Date.now();
 			boostEl.textContent = model.boostCooldownUntil && now < model.boostCooldownUntil ? 'Recharge' : 'Prêt';
+		}
+		if (bonusEl) {
+			var now = Date.now();
+			if (model.bonusActiveUntil && now < model.bonusActiveUntil) {
+				bonusEl.textContent = 'Bonus commun : actif';
+			} else {
+				var remaining = model.commonOrbSeed ? ((model.commonOrbSeed + 1) * model.commonOrbCycleDuration - now) : 0;
+				var seconds = Math.max(1, Math.ceil(remaining / 1000));
+				bonusEl.textContent = 'Bonus commun : en carte (' + seconds + 's)';
+			}
 		}
 	};
 
@@ -402,6 +434,139 @@ var App = function(aSettings, aCanvas) {
 			showToast('Nouvelle couleur débloquée');
 		}
 	};
+
+	var ensureCollectibles = function() {
+		if (!model.collectibleTargetCount) {
+			model.collectibleTargetCount = 20;
+		}
+		var bounds = model.camera.getOuterBounds();
+		var padding = 240;
+		var minDistance = 100;
+		var maxAttempts = 12;
+		while (model.collectibles.length < model.collectibleTargetCount) {
+			var orb = spawnOrbInBounds(bounds, padding, minDistance, model.collectibles, maxAttempts);
+			if (!orb) {
+				break;
+			}
+			model.collectibles.push(orb);
+		}
+	};
+
+	var spawnOrbInBounds = function(bounds, padding, minDistance, existing, maxAttempts) {
+		for (var attempt = 0; attempt < maxAttempts; attempt++) {
+			var x = bounds[0].x - padding + Math.random() * (bounds[1].x - bounds[0].x + padding * 2);
+			var y = bounds[0].y - padding + Math.random() * (bounds[1].y - bounds[0].y + padding * 2);
+			if (!isFarFromOrbs(x, y, minDistance, existing)) {
+				continue;
+			}
+			var dxUser = model.userTadpole.x - x;
+			var dyUser = model.userTadpole.y - y;
+			if (Math.sqrt(dxUser * dxUser + dyUser * dyUser) < 120) {
+				continue;
+			}
+			return {
+				x: x,
+				y: y,
+				r: 2 + Math.random() * 2.6,
+				pulseOffset: Math.random() * Math.PI * 2
+			};
+		}
+		return null;
+	};
+
+	var isFarFromOrbs = function(x, y, minDistance, orbs) {
+		for (var i = 0; i < orbs.length; i++) {
+			var dx = orbs[i].x - x;
+			var dy = orbs[i].y - y;
+			if (Math.sqrt(dx * dx + dy * dy) < minDistance) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	var updateCommonOrbs = function() {
+		var now = Date.now();
+		var seed = Math.floor(now / model.commonOrbCycleDuration);
+		if (seed !== model.commonOrbSeed) {
+			model.commonOrbSeed = seed;
+			model.commonOrbs = buildCommonOrbs(seed);
+			model.collectedCommonOrbs = {};
+		}
+	};
+
+	var buildCommonOrbs = function(seed) {
+		var rng = seededRandom(seed);
+		var count = 6;
+		var orbs = [];
+		for (var i = 0; i < count; i++) {
+			var angle = rng() * Math.PI * 2;
+			var radius = 360 + rng() * 920;
+			var x = Math.cos(angle) * radius;
+			var y = Math.sin(angle) * radius;
+			var type = rng() > 0.5 ? 'boost' : 'score';
+			orbs.push({
+				id: seed + '-' + i,
+				x: x,
+				y: y,
+				r: 4 + rng() * 2.5,
+				type: type,
+				pulseOffset: rng() * Math.PI * 2
+			});
+		}
+		return orbs;
+	};
+
+	var drawCommonOrbs = function() {
+		if (!model.commonOrbs) {
+			return;
+		}
+		var now = Date.now();
+		for (var i = 0; i < model.commonOrbs.length; i++) {
+			var orb = model.commonOrbs[i];
+			if (model.collectedCommonOrbs[orb.id]) {
+				continue;
+			}
+			var pulse = 1 + Math.sin(now * 0.003 + orb.pulseOffset) * 0.25;
+			var radius = orb.r * pulse;
+			context.beginPath();
+			var baseColor = orb.type === 'boost' ? 'rgba(255,214,137,0.9)' : 'rgba(186,137,255,0.9)';
+			var glowColor = orb.type === 'boost' ? 'rgba(255,214,137,0.3)' : 'rgba(186,137,255,0.3)';
+			var gradient = context.createRadialGradient(orb.x - 2, orb.y - 2, 1, orb.x, orb.y, radius + 6);
+			gradient.addColorStop(0, baseColor);
+			gradient.addColorStop(1, glowColor);
+			context.fillStyle = gradient;
+			context.arc(orb.x, orb.y, radius + 2, 0, Math.PI * 2);
+			context.fill();
+
+			context.beginPath();
+			context.strokeStyle = 'rgba(255,255,255,0.6)';
+			context.lineWidth = 1;
+			context.arc(orb.x, orb.y, radius + 6, 0, Math.PI * 2);
+			context.stroke();
+		}
+	};
+
+	var applyCommonBonus = function(orb) {
+		var now = Date.now();
+		if (orb.type === 'boost') {
+			model.bonusActiveUntil = now + 6000;
+			showToast('Bonus commun : turbo !');
+		} else {
+			model.score += 5;
+			showToast('Bonus commun : +5 score');
+		}
+	};
+
+	var seededRandom = function(seed) {
+		var t = seed + 0x6D2B79F5;
+		return function() {
+			t += 0x6D2B79F5;
+			var r = Math.imul(t ^ t >>> 15, 1 | t);
+			r ^= r + Math.imul(r ^ r >>> 7, 61 | r);
+			return ((r ^ r >>> 14) >>> 0) / 4294967296;
+		};
+	};
 	
 	// Constructor
 	(function(){
@@ -422,6 +587,11 @@ var App = function(aSettings, aCanvas) {
 		model.questCollected = 0;
 		model.boostUntil = 0;
 		model.boostCooldownUntil = 0;
+		model.bonusActiveUntil = 0;
+		model.commonOrbCycleDuration = 20000;
+		model.commonOrbs = [];
+		model.commonOrbSeed = null;
+		model.collectedCommonOrbs = {};
 		model.gems = parseInt(localStorage.getItem('tadpole_gems') || '0', 10);
 		
 		model.waterParticles = [];

@@ -73,6 +73,7 @@ if(!function_exists('is_mobile'))
 			<div id="quest-tracker" aria-live="polite">
 				<h4>Mission du jour</h4>
 				<p id="quest-progress">Collecte 0 / 5 orbes</p>
+				<p id="bonus-status">Bonus commun : en carte</p>
 			</div>
 
 			<div id="intro-panel" class="is-hidden" role="dialog" aria-live="polite">
@@ -160,7 +161,6 @@ if(!function_exists('is_mobile'))
 		<script src="/js/jquery.min.js"></script>
 		<script src="/js/lib/Stats.js"></script>
 		
-		<script src="/js/App.js"></script>
 		<script src="/js/Model.js"></script>
 		<script src="/js/Settings.js"></script>
 		<script src="/js/Keys.js"></script>
@@ -177,6 +177,7 @@ if(!function_exists('is_mobile'))
 		<script src="/js/formControls.js"></script>
 		
 		<script src="/js/Cookie.js"></script>
+		<script src="/js/App.js"></script>
 		<script src="/js/main.js"></script>
 		
 	</body>
