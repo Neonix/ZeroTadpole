@@ -6,7 +6,8 @@ window.inputState = {
 	isMoving: false,
 	targetX: 0,
 	targetY: 0,
-	useJoystick: false
+	useJoystick: false,
+	isDropping: false
 };
 
 var App = function(aSettings, aCanvas) {
@@ -405,13 +406,17 @@ var App = function(aSettings, aCanvas) {
 	}
 	
 	var resizeCanvas = function() {
-		var dpr = window.devicePixelRatio || 1;
+		var devicePixelRatio = window.devicePixelRatio || 1;
+		var isAndroid = /Android/i.test(navigator.userAgent || '');
+		var maxDpr = isAndroid ? 1.25 : 1.5;
+		var dpr = Math.min(devicePixelRatio, maxDpr);
 		var w = window.innerWidth;
 		var h = window.innerHeight;
-		canvas.width = w * dpr;
-		canvas.height = h * dpr;
+		canvas.width = Math.floor(w * dpr);
+		canvas.height = Math.floor(h * dpr);
 		canvas.style.width = w + 'px';
 		canvas.style.height = h + 'px';
+		context.setTransform(1, 0, 0, 1, 0, 0);
 		context.scale(dpr, dpr);
 	};
 

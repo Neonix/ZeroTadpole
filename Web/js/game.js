@@ -122,6 +122,11 @@
         dom.privateTarget = document.getElementById('private-target');
         dom.privateInput = document.getElementById('private-input');
         dom.privateSend = document.getElementById('private-send');
+        dom.playerInspect = document.getElementById('player-inspect');
+        dom.inspectName = document.getElementById('inspect-name');
+        dom.inspectId = document.getElementById('inspect-id');
+        dom.inspectColor = document.getElementById('inspect-color');
+        dom.inspectColorValue = document.getElementById('inspect-color-value');
         
         // Mobile controls
         dom.virtualJoystick = document.getElementById('virtual-joystick');
@@ -693,6 +698,7 @@
         if (!players || players.length === 0) {
             dom.playerListEmpty.style.display = 'block';
             dom.privateMessageArea.classList.add('hidden');
+            dom.playerInspect.classList.add('hidden');
             return;
         }
         
@@ -714,6 +720,13 @@
         selectedPlayerId = player.id;
         dom.privateTarget.textContent = 'Message privé à ' + (player.name || 'Anonyme');
         dom.privateMessageArea.classList.remove('hidden');
+        dom.playerInspect.classList.remove('hidden');
+        dom.inspectName.textContent = player.name || 'Anonyme';
+        dom.inspectId.textContent = player.id;
+        const color = player.color || '#8ce6de';
+        dom.inspectColor.style.background = color;
+        dom.inspectColor.style.boxShadow = `0 0 8px ${color}`;
+        dom.inspectColorValue.textContent = color;
         dom.privateInput.focus();
     }
 
@@ -1661,7 +1674,21 @@
             if (slot) {
                 slot.addEventListener('click', () => {
                     if (window.GameSystems) {
+                        if (window.inputState && window.inputState.isDropping) {
+                            if (window.GameSystems.inventory.dropItem(i, state.app?.model)) {
+                                updateGameSystemsUI();
+                            }
+                            window.inputState.isDropping = false;
+                            slot.classList.remove('dropping');
+                            return;
+                        }
                         window.GameSystems.inventory.useItem(i, window.GameSystems.playerStats, window.GameSystems.gameState);
+                    }
+                });
+                slot.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    if (window.GameSystems?.inventory.dropItem(i, state.app?.model)) {
+                        updateGameSystemsUI();
                     }
                 });
             }
@@ -1670,6 +1697,13 @@
         // Keyboard shortcuts for inventory
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'Shift') {
+                window.inputState = window.inputState || {};
+                window.inputState.isDropping = true;
+                document.querySelectorAll('.inventory-slot').forEach((slot) => {
+                    slot.classList.add('dropping');
+                });
+            }
             
             if (e.key === '1') {
                 window.GameSystems?.inventory.useItem(0, window.GameSystems.playerStats, window.GameSystems.gameState);
@@ -1677,6 +1711,16 @@
                 window.GameSystems?.inventory.useItem(1, window.GameSystems.playerStats, window.GameSystems.gameState);
             } else if (e.key === '3') {
                 window.GameSystems?.inventory.useItem(2, window.GameSystems.playerStats, window.GameSystems.gameState);
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'Shift') {
+                window.inputState = window.inputState || {};
+                window.inputState.isDropping = false;
+                document.querySelectorAll('.inventory-slot').forEach((slot) => {
+                    slot.classList.remove('dropping');
+                });
             }
         });
         

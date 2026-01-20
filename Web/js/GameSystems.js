@@ -442,6 +442,18 @@
             
             return true;
         }
+
+        dropItem(slotIndex, model) {
+            if (!window.GameSystems || !window.GameSystems.combat) {
+                return false;
+            }
+            const itemId = this.removeItem(slotIndex);
+            if (!itemId) {
+                return false;
+            }
+            return window.GameSystems.combat.dropItem(itemId, model);
+        }
+
         
         removeItem(slotIndex) {
             if (slotIndex < 0 || slotIndex >= this.maxSlots) return null;
@@ -669,14 +681,56 @@
             this.lastMobSpawn = 0;
             this.mobSpawnInterval = 5000; // 5 seconds
             this.maxMobs = 10;
+            this.safeZoneCenter = null;
+            this.safeZoneRadius = 220;
         }
         
         update(model, deltaTime) {
+            this.ensureSafeZone(model);
             this.updateMobs(model, deltaTime);
             this.updateProjectiles(model, deltaTime);
             this.updateLoot(model);
-            this.spawnMobs(model);
+            if (!this.isInSafeZone(model.userTadpole?.x || 0, model.userTadpole?.y || 0)) {
+                this.spawnMobs(model);
+            }
             this.checkCollisions(model);
+        }
+
+        dropItem(itemId, model) {
+            const item = ITEMS[itemId];
+            if (!item || !model.userTadpole) {
+                return false;
+            }
+            this.lootDrops.push({
+                id: Date.now() + Math.random(),
+                itemId: itemId,
+                x: model.userTadpole.x,
+                y: model.userTadpole.y,
+                spawnTime: Date.now()
+            });
+            if (window.showToast) {
+                window.showToast(`${item.icon} ${item.name} jeté.`, 'info');
+            }
+            return true;
+        }
+
+        ensureSafeZone(model) {
+            if (this.safeZoneCenter || !model.userTadpole) {
+                return;
+            }
+            this.safeZoneCenter = {
+                x: model.userTadpole.x,
+                y: model.userTadpole.y
+            };
+        }
+
+        isInSafeZone(x, y) {
+            if (!this.safeZoneCenter) {
+                return false;
+            }
+            const dx = x - this.safeZoneCenter.x;
+            const dy = y - this.safeZoneCenter.y;
+            return Math.sqrt(dx * dx + dy * dy) <= this.safeZoneRadius;
         }
         
         spawnMobs(model) {
@@ -703,9 +757,20 @@
             // Spawn at random position away from player
             const playerX = model.userTadpole?.x || 0;
             const playerY = model.userTadpole?.y || 0;
-            
-            const angle = Math.random() * Math.PI * 2;
-            const distance = 200 + Math.random() * 300;
+            const safePadding = this.safeZoneRadius + 80;
+            let angle = Math.random() * Math.PI * 2;
+            let distance = 200 + Math.random() * 300;
+            let attempts = 0;
+            while (this.safeZoneCenter && attempts < 10) {
+                const candidateX = playerX + Math.cos(angle) * distance;
+                const candidateY = playerY + Math.sin(angle) * distance;
+                if (!this.isInSafeZone(candidateX, candidateY)) {
+                    break;
+                }
+                angle = Math.random() * Math.PI * 2;
+                distance = safePadding + Math.random() * 300;
+                attempts += 1;
+            }
             
             const mob = {
                 ...mobType,
@@ -740,7 +805,16 @@
                 const dy = playerY - mob.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist < 300) {
+                if (this.isInSafeZone(playerX, playerY)) {
+                    if (this.isInSafeZone(mob.x, mob.y)) {
+                        const push = this.safeZoneRadius - dist + 5;
+                        if (push > 0) {
+                            const angleAway = Math.atan2(mob.y - playerY, mob.x - playerX);
+                            mob.x += Math.cos(angleAway) * push * 0.05;
+                            mob.y += Math.sin(angleAway) * push * 0.05;
+                        }
+                    }
+                } else if (dist < 300) {
                     // Chase player
                     mob.angle = Math.atan2(dy, dx);
                     mob.x += Math.cos(mob.angle) * mob.speed;
@@ -778,8 +852,11 @@
                 
                 // Pick up loot
                 if (dist < 20) {
-                    window.GameSystems.inventory.addItem(loot.itemId);
-                    return false;
+                    var added = window.GameSystems.inventory.addItem(loot.itemId);
+                    if (!added && window.showToast) {
+                        window.showToast('Inventaire plein !', 'warning');
+                    }
+                    return added ? false : true;
                 }
                 
                 // Remove old loot
@@ -799,6 +876,10 @@
             const gameState = window.GameSystems.gameState;
             const now = Date.now();
             
+            if (this.isInSafeZone(playerX, playerY)) {
+                return;
+            }
+
             // Check shield
             const isShielded = gameState.shieldUntil && now < gameState.shieldUntil;
             

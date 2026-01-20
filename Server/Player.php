@@ -189,6 +189,7 @@ class Player extends Character
 
                     $this->setPosition($x, $y, $angle, $momentum);
                     $this->clearTarget();
+                    $this->server->handlePlayerSafeZone($this);
                     
                     $this->broadcast(new Messages\Move($this), false);
                 //$this->broadcast(0);

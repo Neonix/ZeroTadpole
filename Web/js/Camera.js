@@ -35,7 +35,14 @@ var Camera = function(aCanvas, aContext, x, y) {
 		backgroundColor = backgroundColor > 360 ? 0 : backgroundColor;
 		
 		var targetZoom = (model.camera.maxZoom + (model.camera.minZoom - model.camera.maxZoom) * Math.min(model.userTadpole.momentum, model.userTadpole.maxMomentum) / model.userTadpole.maxMomentum);
-		model.camera.zoom += (targetZoom - model.camera.zoom) / 60;
+		var zoomDelta = targetZoom - model.camera.zoom;
+		model.camera.zoom += zoomDelta * 0.08;
+		if (model.camera.zoom < model.camera.minZoom) {
+			model.camera.zoom = model.camera.minZoom;
+		}
+		if (model.camera.zoom > model.camera.maxZoom) {
+			model.camera.zoom = model.camera.maxZoom;
+		}
 		
 		var delta = {
 			x: (model.userTadpole.x - model.camera.x) / 30,

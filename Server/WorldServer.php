@@ -40,6 +40,9 @@ class WorldServer
     public $itemCount;
     public $playerCount;
     public $zoneGroupsReady;
+    public $safeZoneCenter;
+    public $safeZoneRadius;
+    public $safeZoneEnabled;
     
     
     public function __construct($id, $maxPlayers, $websocketServer)
@@ -67,6 +70,9 @@ class WorldServer
         $this->playerCount = 0;
         
         $this->zoneGroupsReady = false;
+        $this->safeZoneCenter = array('x' => 1, 'y' => 1);
+        $this->safeZoneRadius = 12;
+        $this->safeZoneEnabled = true;
         $self = $this;
 
         //Quand un player ce connect
@@ -78,9 +84,9 @@ class WorldServer
                 {
                     return $player->lastCheckpoint->getRandomPosition();
                 } else {
-                    $pos['x']= $pos['y'] = 1;
+                    $pos = $self->getSpawnPosition();
+                    $self->ensureSafeZoneCenter($pos);
                     return $pos;
-                    return $self->map->getRandomStartingPosition();
                 }
             });
         });
@@ -212,6 +218,9 @@ class WorldServer
             $self->initZoneGroups();
 
             $self->map->generateCollisionGrid();
+
+            // Spawn shared static entities (NPCs/mobs/items)
+            $self->spawnStaticEntities();
 
             // Populate all mob "roaming" areas
            /*
@@ -583,6 +592,9 @@ class WorldServer
         $mob = $this->getEntityById($mobId);
         $player = $this->getEntityById($playerId);
         if($player && $mob) {
+            if($this->isPlayerInSafeZone($player)) {
+                return;
+            }
             $mob->increaseHateFor($playerId, $hatePoints);
             $player->addHater($mob);
             
@@ -596,6 +608,10 @@ class WorldServer
     public function chooseMobTarget($mob, $hateRank = 0) 
     {
         $player = $this->getEntityById($mob->getHatedPlayerId($hateRank));
+        while($player && $this->isPlayerInSafeZone($player)) {
+            $hateRank += 1;
+            $player = $this->getEntityById($mob->getHatedPlayerId($hateRank));
+        }
         
         // If the mob is not already attacking the player, create an attack link between them.
         if($player && ! isset($player->attackers[$mob->id])) 
@@ -705,6 +721,10 @@ class WorldServer
     
     public function spawnStaticEntities() 
     {
+        $hasNpcClass = class_exists(__NAMESPACE__ . '\\Npc');
+        $hasMobClass = class_exists(__NAMESPACE__ . '\\Mob');
+        $hasItemClass = class_exists(__NAMESPACE__ . '\\Item');
+        $hasChestClass = class_exists(__NAMESPACE__ . '\\Chest');
         $count = 0;
         foreach($this->map->staticEntities as $tid=>$kindName)
         {
@@ -713,28 +733,37 @@ class WorldServer
             
             if(Types::isNpc($kind)) 
             {
-                $this->addNpc($kind, $pos['x'] + 1, $pos['y']);
+                if($hasNpcClass) 
+                {
+                    $this->addNpc($kind, $pos['x'] + 1, $pos['y']);
+                }
             }
             if(Types::isMob($kind)) 
             {
-                $mob = new Mob('7' . $kind . ($count++), $kind, $pos['x'] + 1, $pos['y']);
-                $self = $this;
-                $mob->onRespawn(function() use ($mob, $self){
-                    $mob->isDead = false;
-                    $self->addMob($mob);
-                    if(!empty($mob->area) && $mob->area instanceof ChestArea)
-                    {
-                        $mob->area->addToArea($mob);
-                    }
-                });
-                // @todo bind
-                $mob->onMove(array($self, 'onMobMoveCallback'));
-                $this->addMob($mob);
-                $this->tryAddingMobToChestArea($mob);
+                if($hasMobClass) 
+                {
+                    $mob = new Mob('7' . $kind . ($count++), $kind, $pos['x'] + 1, $pos['y']);
+                    $self = $this;
+                    $mob->onRespawn(function() use ($mob, $self){
+                        $mob->isDead = false;
+                        $self->addMob($mob);
+                        if(!empty($mob->area) && $mob->area instanceof ChestArea)
+                        {
+                            $mob->area->addToArea($mob);
+                        }
+                    });
+                    // @todo bind
+                    $mob->onMove(array($self, 'onMobMoveCallback'));
+                    $this->addMob($mob);
+                    $this->tryAddingMobToChestArea($mob);
+                }
             }
             if(Types::isItem($kind)) 
             {
-                $this->addStaticItem($this->createItem($kind, $pos['x'] + 1, $pos['y']));
+                if($hasItemClass && ($kind !== TYPES_ENTITIES_CHEST || $hasChestClass)) 
+                {
+                    $this->addStaticItem($this->createItem($kind, $pos['x'] + 1, $pos['y']));
+                }
             }
         }
     }
@@ -849,6 +878,66 @@ class WorldServer
             $valid = $this->isValidPosition($pos['x'], $pos['y']);
         }
         return $pos;
+    }
+
+    public function getSpawnPosition()
+    {
+        if($this->map && !empty($this->map->startingAreas)) {
+            return $this->map->getRandomStartingPosition();
+        }
+        return array('x' => 1, 'y' => 1);
+    }
+
+    public function ensureSafeZoneCenter($pos)
+    {
+        if($this->safeZoneCenter === null || ($this->safeZoneCenter['x'] === 1 && $this->safeZoneCenter['y'] === 1)) {
+            $this->safeZoneCenter = array('x' => $pos['x'], 'y' => $pos['y']);
+        }
+    }
+
+    public function isInSafeZone($x, $y)
+    {
+        if(!$this->safeZoneEnabled || $this->safeZoneCenter === null) {
+            return false;
+        }
+        $dx = abs($x - $this->safeZoneCenter['x']);
+        $dy = abs($y - $this->safeZoneCenter['y']);
+        return $dx <= $this->safeZoneRadius && $dy <= $this->safeZoneRadius;
+    }
+
+    public function isPlayerInSafeZone($player)
+    {
+        if(!$player) {
+            return false;
+        }
+        return $this->isInSafeZone($player->x, $player->y);
+    }
+
+    public function handlePlayerSafeZone($player)
+    {
+        if($this->isPlayerInSafeZone($player)) {
+            $this->clearAggroForPlayer($player);
+        }
+    }
+
+    public function clearAggroForPlayer($player)
+    {
+        if(!$player) {
+            return;
+        }
+        $attackers = array();
+        $player->forEachAttacker(function($mob) use (&$attackers) {
+            $attackers[] = $mob;
+        });
+        foreach($attackers as $mob) {
+            $player->removeAttacker($mob);
+            $mob->clearTarget();
+            $mob->forgetPlayer($player->id, 1000);
+        }
+        $player->forEachHater(function($mob) use ($player) {
+            $player->removeHater($mob);
+            $mob->forgetPlayer($player->id, 1000);
+        });
     }
     
     public function initZoneGroups() 

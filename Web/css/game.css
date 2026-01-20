@@ -819,6 +819,44 @@ body {
     gap: 8px;
 }
 
+.player-inspect {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+}
+
+.player-inspect h3 {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: var(--text);
+}
+
+.inspect-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding: 4px 0;
+}
+
+.inspect-label {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.inspect-color {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    background: var(--primary);
+    box-shadow: 0 0 6px rgba(140, 230, 222, 0.6);
+}
+
 .pm-input-group input {
     flex: 1;
     padding: 10px 14px;
@@ -1743,6 +1781,11 @@ body {
 
 .inventory-slot.on-cooldown {
     opacity: 0.6;
+}
+
+.inventory-slot.dropping {
+    border-color: #ff8c8c;
+    box-shadow: 0 0 12px rgba(255, 140, 140, 0.6);
 }
 
 .inventory-slot.empty {
