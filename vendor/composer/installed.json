@@ -44,17 +44,17 @@
         },
         {
             "name": "workerman/workerman",
-            "version": "v5.1.8",
-            "version_normalized": "5.1.8.0",
+            "version": "v5.1.9",
+            "version_normalized": "5.1.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/walkor/workerman.git",
-                "reference": "a314755259375fbeb6051e27171fcdb46e7ba2ca"
+                "reference": "fff0954628f8ceeccfe29d3e817f0fad87cfdbf2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/walkor/workerman/zipball/a314755259375fbeb6051e27171fcdb46e7ba2ca",
-                "reference": "a314755259375fbeb6051e27171fcdb46e7ba2ca",
+                "url": "https://api.github.com/repos/walkor/workerman/zipball/fff0954628f8ceeccfe29d3e817f0fad87cfdbf2",
+                "reference": "fff0954628f8ceeccfe29d3e817f0fad87cfdbf2",
                 "shasum": ""
             },
             "require": {
@@ -74,7 +74,7 @@
             "suggest": {
                 "ext-event": "For better performance. "
             },
-            "time": "2026-01-05T08:36:38+00:00",
+            "time": "2026-01-09T03:26:15+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {

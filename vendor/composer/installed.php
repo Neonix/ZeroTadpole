@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => '__root__',
-        'pretty_version' => 'dev-master',
-        'version' => 'dev-master',
-        'reference' => 'c1e471114ab4117c066d0a60dca11bb33160a8ad',
+        'pretty_version' => '1.0.0+no-version-set',
+        'version' => '1.0.0.0',
+        'reference' => null,
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         '__root__' => array(
-            'pretty_version' => 'dev-master',
-            'version' => 'dev-master',
-            'reference' => 'c1e471114ab4117c066d0a60dca11bb33160a8ad',
+            'pretty_version' => '1.0.0+no-version-set',
+            'version' => '1.0.0.0',
+            'reference' => null,
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -29,9 +29,9 @@
             'dev_requirement' => false,
         ),
         'workerman/workerman' => array(
-            'pretty_version' => 'v5.1.8',
-            'version' => '5.1.8.0',
-            'reference' => 'a314755259375fbeb6051e27171fcdb46e7ba2ca',
+            'pretty_version' => 'v5.1.9',
+            'version' => '5.1.9.0',
+            'reference' => 'fff0954628f8ceeccfe29d3e817f0fad87cfdbf2',
             'type' => 'library',
             'install_path' => __DIR__ . '/../workerman/workerman',
             'aliases' => array(),
