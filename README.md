@@ -32,7 +32,7 @@ Un jeu multijoueur en temps réel où vous incarnez un têtard dans un monde aqu
 ### Prérequis
 - PHP 7.4+ avec support CLI
 - Extension PHP pcntl (Linux/Mac) ou Windows avec PHP
-- Port 8282 disponible
+- Port 80 disponible
 
 ### Lancement
 
@@ -43,7 +43,7 @@ php start.php start
 ```
 
 2. **Accéder au jeu** :
-Ouvrez `http://localhost:8282` dans votre navigateur
+Ouvrez `http://localhost:80` dans votre navigateur
 
 ### En production
 
@@ -82,12 +82,12 @@ ZeroTadpole/
 
 ## 🔧 Configuration
 
-### Changer le port
+### Changer le port (ne marche pas encore)
 Modifiez `config.json` :
 ```json
 {
-    "web_port": 8282,
-    "ws_port": 8282
+    "web_port": ,
+    "ws_port": 
 }
 ```
 
