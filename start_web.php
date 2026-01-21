@@ -11,22 +11,48 @@
  * @link http://www.workerman.net/
  * @license http://www.opensource.org/licenses/mit-license.php MIT License
  */
-use \Workerman\WebServer;
-use \Workerman\Worker;
+use Workerman\Protocols\Http\Response;
+use Workerman\Worker;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-// 这里使用workerman的WebServer运行Web目录。Web目录也可以用nginx/Apache等容器运行
-$web = new WebServer("http://0.0.0.0:80");
+$webRoot = realpath(__DIR__ . '/Web');
+$webRoot = $webRoot === false ? __DIR__ . '/Web' : rtrim($webRoot, DIRECTORY_SEPARATOR);
+
+$web = new Worker('http://0.0.0.0:80');
 
 $web->count = 1;
 
 $web->name = 'ZeroWeb';
 
-$web->addRoot('www.your_domain.com', __DIR__.'/Web');
+$web->onMessage = static function ($connection, $request) use ($webRoot) {
+    $path = rawurldecode($request->path());
+
+    if ($path === '/') {
+        $path = '/index.html';
+    }
+
+    $relativePath = ltrim($path, '/');
+    $fullPath = realpath($webRoot . DIRECTORY_SEPARATOR . $relativePath);
+
+    if ($fullPath !== false && is_dir($fullPath)) {
+        $fullPath = realpath($fullPath . DIRECTORY_SEPARATOR . 'index.html');
+    }
+
+    $rootPrefix = $webRoot . DIRECTORY_SEPARATOR;
+    if (
+        $fullPath === false
+        || strncmp($fullPath, $rootPrefix, strlen($rootPrefix)) !== 0
+        || !is_file($fullPath)
+    ) {
+        $connection->send(new Response(404, ['Content-Type' => 'text/html; charset=utf-8'], '<h3>404 Not Found</h3>'));
+        return;
+    }
+
+    $connection->send((new Response())->withFile($fullPath));
+};
 
 // 如果不是在根目录启动，则运行runAll方法
-if(!defined('GLOBAL_START'))
-{
+if (!defined('GLOBAL_START')) {
     Worker::runAll();
 }

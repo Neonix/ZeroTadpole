@@ -3,8 +3,7 @@
  * Created by neonix on 06/07/2017.
  */
 namespace Server;
-use \Workerman\Lib\Timer;
-use \Workerman\Lib\Gateway;
+use \Workerman\Timer;
 use \Server\Lib\Db;
 
 
@@ -558,7 +557,7 @@ class Player extends Character
     {
         Timer::del($this->disconnectTimeout);
         // 15分钟
-        $this->disconnectTimeout = Timer::add(15*60, array($this, 'timeout'), false);
+        $this->disconnectTimeout = Timer::add(15*60, array($this, 'timeout'), array(), false);
     }
     
     public function timeout()

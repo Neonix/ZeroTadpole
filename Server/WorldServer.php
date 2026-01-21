@@ -4,7 +4,7 @@
  */
 namespace Server;
 use \Workerman\Worker;
-use \Workerman\Lib\Timer;
+use \Workerman\Timer;
 use \Server\Config\Db;
 
 require_once __DIR__ . '/Constants.php';
