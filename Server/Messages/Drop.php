@@ -28,13 +28,13 @@ class Drop
     public function serialize()
     {
         return array(
-            'type' => 'drop',
-            'mobId' => $this->mob->id,
-            'itemId' => $this->item->id,
-            'kind' => $this->item->kind,
-            'x' => $this->item->x,
-            'y' => $this->item->y,
-            'haters' => Utils::pluck($this->mob->hatelist, 'id')
+            TYPES_MESSAGES_DROP,
+            $this->mob->id,
+            $this->item->id,
+            $this->item->kind,
+            $this->item->x,
+            $this->item->y,
+            Utils::pluck($this->mob->hatelist, 'id')
         );
     }
 }

@@ -27,11 +27,11 @@ class PrivateChat
     public function serialize()
     {
         return array(
-            'type' => 'private',
-            'from' => $this->player ? $this->player->id : null,
-            'name' => $this->player ? $this->player->name : 'Inconnu',
-            'color' => $this->player ? $this->player->color : '#9ad7ff',
-            'message' => $this->message
+            'private',
+            $this->player ? $this->player->id : null,
+            $this->player ? $this->player->name : 'Inconnu',
+            $this->player ? $this->player->color : '#9ad7ff',
+            $this->message
         );
     }
 }

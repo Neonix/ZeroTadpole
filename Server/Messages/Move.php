@@ -26,20 +26,17 @@ class Move
 
         //{"type":"update","id":1499779413,"angle":3.705,"momentum":0,"x":-57,"y":-30.8,"life":1,"name":"Teou","authorized":false}
         //{"type":"move","id":"2","x":"-100.1","y":"34.4","angle":"7.037","momentum":"0.219","name":"Teou","life":"1","authorized":""}
-        $output = array(
-            "type"      => TYPES_MESSAGES_MOVE,
-            'id'        => (int) $this->entity->id + 0,
-            'x'         => (float) $this->entity->x,
-            'y'         => (float) $this->entity->y,
-            'angle'     => (float) $this->entity->angle,
-            'momentum'  => (float) $this->entity->momentum,
-            'name'      => $this->entity->name,
-            'color'     => $this->entity->color,
-            'life'      => 1,
-            'authorized'=> false
+        return array(
+            TYPES_MESSAGES_MOVE,
+            (int) $this->entity->id + 0,
+            (float) $this->entity->x,
+            (float) $this->entity->y,
+            (float) $this->entity->angle,
+            (float) $this->entity->momentum,
+            $this->entity->name,
+            $this->entity->color,
+            1,
+            false
         );
-
-        $str = str_replace('\\', '', $output);
-        return $output;
     }
 }

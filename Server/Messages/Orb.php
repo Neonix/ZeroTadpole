@@ -18,9 +18,9 @@ class Orb
     public function serialize()
     {
         return array(
-            'type' => 'orb',
-            'orbId' => $this->orbId,
-            'playerId' => $this->playerId
+            'orb',
+            $this->orbId,
+            $this->playerId
         );
     }
 }

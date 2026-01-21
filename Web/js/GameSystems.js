@@ -812,7 +812,6 @@
             const smoothFactor = Math.min(1, Math.max(0.05, deltaTime / 120));
             const deltaSeconds = Math.max(0.001, deltaTime / 1000);
             const now = performance.now();
-            const interpolationDelay = 120;
             
             this.mobs.forEach(mob => {
                 if (mob.serverControlled) {
@@ -822,6 +821,9 @@
                             mob.type = mobTemplate.type;
                         }
                     }
+                    const interpolationDelay = mob.serverUpdateInterval
+                        ? Math.min(400, Math.max(120, mob.serverUpdateInterval * 1.1))
+                        : 120;
                     if (
                         typeof mob.prevX === 'number'
                         && typeof mob.prevY === 'number'

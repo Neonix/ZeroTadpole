@@ -288,6 +288,7 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 				vy: data.vy || 0,
 				lastServerUpdateAt: performance.now(),
 				prevServerUpdateAt: performance.now(),
+				serverUpdateInterval: 250,
 				hp: data.hp,
 				maxHp: data.maxHp
 			});
@@ -299,19 +300,23 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		if (!mobType && existing.mobType) {
 			mobType = window.GameSystems.MOBS ? window.GameSystems.MOBS[existing.mobType] : null;
 		}
-		existing.prevX = existing.x;
-		existing.prevY = existing.y;
-		existing.x = data.x;
-		existing.y = data.y;
+		existing.prevX = typeof existing.targetX === 'number' ? existing.targetX : existing.x;
+		existing.prevY = typeof existing.targetY === 'number' ? existing.targetY : existing.y;
 		existing.targetX = data.x;
 		existing.targetY = data.y;
-		existing.prevAngle = existing.angle;
-		existing.angle = data.angle;
+		existing.prevAngle = typeof existing.targetAngle === 'number' ? existing.targetAngle : existing.angle;
 		existing.targetAngle = data.angle;
 		existing.vx = data.vx || 0;
 		existing.vy = data.vy || 0;
-		existing.prevServerUpdateAt = existing.lastServerUpdateAt || performance.now();
-		existing.lastServerUpdateAt = performance.now();
+		var now = performance.now();
+		existing.prevServerUpdateAt = existing.lastServerUpdateAt || now;
+		existing.lastServerUpdateAt = now;
+		var serverDelta = existing.lastServerUpdateAt - existing.prevServerUpdateAt;
+		if (serverDelta > 0) {
+			existing.serverUpdateInterval = existing.serverUpdateInterval
+				? existing.serverUpdateInterval * 0.8 + serverDelta * 0.2
+				: serverDelta;
+		}
 		if (data.hp !== undefined) {
 			existing.hp = data.hp;
 		}
@@ -363,12 +368,84 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 	this.processMessage = function(data) {
 		if (Array.isArray(data)) {
 			var legacyType = data[0];
-			if (legacyType === 14) { // TYPES_MESSAGES_DROP
+			if (legacyType === 'update') {
+				this.updateHandler({
+					type: 'update',
+					id: data[1],
+					x: data[2],
+					y: data[3],
+					angle: data[4],
+					momentum: data[5],
+					name: data[6],
+					color: data[7],
+					life: data[8],
+					authorized: data[9]
+				});
+			} else if (legacyType === 2) { // TYPES_MESSAGES_SPAWN
+				this.spawnHandler({
+					type: 'spawn',
+					id: data[1],
+					entityType: data[2],
+					kind: data[3],
+					x: data[4],
+					y: data[5],
+					angle: data[6],
+					momentum: data[7],
+					name: data[8],
+					color: data[9],
+					life: data[10]
+				});
+			} else if (legacyType === 'message') {
+				this.messageHandler({
+					type: 'message',
+					id: data[1],
+					name: data[2],
+					color: data[3],
+					message: data[4]
+				});
+			} else if (legacyType === 'private') {
+				this.privateHandler({
+					type: 'private',
+					from: data[1],
+					name: data[2],
+					color: data[3],
+					message: data[4]
+				});
+			} else if (legacyType === 'players') {
+				this.playersHandler({
+					type: 'players',
+					players: data[1]
+				});
+			} else if (legacyType === 17) { // TYPES_MESSAGES_POPULATION
+				this.populationHandler({
+					type: 'population',
+					world: data[1],
+					total: data[2]
+				});
+			} else if (legacyType === 'orb') {
+				this.orbHandler({
+					type: 'orb',
+					orbId: data[1],
+					playerId: data[2]
+				});
+			} else if (legacyType === 'spell') {
+				this.spellHandler({
+					type: 'spell',
+					playerId: data[1],
+					spellId: data[2],
+					x: data[3],
+					y: data[4],
+					angle: data[5]
+				});
+			} else if (legacyType === 14) { // TYPES_MESSAGES_DROP
 				this.dropHandler({
 					type: 'drop',
 					mobId: data[1],
 					itemId: data[2],
-					kind: data[3]
+					kind: data[3],
+					x: data.length > 4 ? data[4] : undefined,
+					y: data.length > 5 ? data[5] : undefined,
+					haters: data.length > 6 ? data[6] : undefined
 				});
 			}
 			return;

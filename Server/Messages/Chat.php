@@ -32,11 +32,11 @@ class Chat
     public function serialize()
     {
         return array(
-            'type' => TYPES_MESSAGES_CHAT,
-            'id' => $this->playerId,
-            'name' => $this->playerName,
-            'color' => $this->playerColor,
-            'message' => $this->message
+            TYPES_MESSAGES_CHAT,
+            $this->playerId,
+            $this->playerName,
+            $this->playerColor,
+            $this->message
         );
     }
 }

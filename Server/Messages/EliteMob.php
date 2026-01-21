@@ -22,6 +22,7 @@ class EliteMob
                 'type' => 'elite_mob',
                 'action' => $this->action,
                 'id' => $this->mob['id'],
+                'mobType' => $this->mob['mobType'],
                 'x' => $this->mob['x'],
                 'y' => $this->mob['y'],
                 'vx' => $this->mob['vx'] ?? 0,

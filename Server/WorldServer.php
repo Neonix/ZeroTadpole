@@ -718,6 +718,8 @@ class WorldServer
             'icon' => $selected['icon'],
             'x' => $x,
             'y' => $y,
+            'spawnX' => $x,
+            'spawnY' => $y,
             'vx' => 0,
             'vy' => 0,
             'angle' => $angle,
@@ -732,6 +734,7 @@ class WorldServer
             'lastAttackAt' => 0,
             'attackCooldown' => 1.5,
             'lastBroadcastAt' => 0,
+            'state' => 'idle',
         );
 
         $this->eliteMobs[$mob['id']] = $mob;
@@ -744,28 +747,49 @@ class WorldServer
         $prevX = $mob['x'];
         $prevY = $mob['y'];
         $player = $this->getClosestPlayerForMob($mob);
+        $aggroRange = 300;
+        $leashRange = 500;
+        $returnRange = 40;
+        $spawnX = $mob['spawnX'] ?? $mob['x'];
+        $spawnY = $mob['spawnY'] ?? $mob['y'];
+        $homeDx = $spawnX - $mob['x'];
+        $homeDy = $spawnY - $mob['y'];
+        $homeDist = sqrt($homeDx * $homeDx + $homeDy * $homeDy);
+        $chasing = false;
+        $targetDist = null;
+
         if($player) {
             $dx = $player->x - $mob['x'];
             $dy = $player->y - $mob['y'];
             $dist = sqrt($dx * $dx + $dy * $dy);
-            if($dist < 300) {
+            if($dist < $aggroRange && $homeDist <= $leashRange) {
+                $chasing = true;
+                $targetDist = $dist;
                 $mob['angle'] = atan2($dy, $dx);
                 $mob['x'] += cos($mob['angle']) * $mob['speed'];
                 $mob['y'] += sin($mob['angle']) * $mob['speed'];
-                $this->handleEliteMobAttack($mob, $player, $dist);
+                $mob['state'] = 'chase';
+            }
+        }
+
+        if(!$chasing) {
+            if($homeDist > $returnRange) {
+                $mob['angle'] = atan2($homeDy, $homeDx);
+                $mob['x'] += cos($mob['angle']) * $mob['speed'] * 0.8;
+                $mob['y'] += sin($mob['angle']) * $mob['speed'] * 0.8;
+                $mob['state'] = $homeDist > $leashRange ? 'return' : 'idle';
             } else {
                 if(mt_rand(0, 100) < 8) {
                     $mob['angle'] += (mt_rand() / mt_getrandmax() - 0.5) * 0.6;
                 }
                 $mob['x'] += cos($mob['angle']) * $mob['speed'] * 0.4;
                 $mob['y'] += sin($mob['angle']) * $mob['speed'] * 0.4;
+                $mob['state'] = 'idle';
             }
-        } else {
-            if(mt_rand(0, 100) < 8) {
-                $mob['angle'] += (mt_rand() / mt_getrandmax() - 0.5) * 0.6;
-            }
-            $mob['x'] += cos($mob['angle']) * $mob['speed'] * 0.4;
-            $mob['y'] += sin($mob['angle']) * $mob['speed'] * 0.4;
+        }
+
+        if($chasing && $player && $targetDist !== null) {
+            $this->handleEliteMobAttack($mob, $player, $targetDist);
         }
 
         $deltaSeconds = max(0.001, (float) $delta);
