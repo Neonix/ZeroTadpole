@@ -250,6 +250,19 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 			window.GameSystems.playerStats.hp = Math.max(0, Math.min(window.GameSystems.playerStats.maxHp, data.points));
 			window.GameSystems.playerStats.save();
 		}
+		if (model && model.userTadpole) {
+			var isDead = data.points <= 0;
+			model.userTadpole.isDead = isDead;
+			window.inputState = window.inputState || {};
+			window.inputState.isDead = isDead;
+			if (isDead) {
+				window.inputState.isMoving = false;
+				window.inputState.useJoystick = false;
+				window.joystickTarget = null;
+				model.userTadpole.targetMomentum = 0;
+				model.userTadpole.momentum = 0;
+			}
+		}
 	}
 
 	this.damageHandler = function(data) {
@@ -379,8 +392,10 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 				return 'potion_health_large';
 			case 38: // TYPES_ENTITIES_FIREPOTION
 				return 'shield_bubble';
+			case 39: // TYPES_ENTITIES_CAKE
+				return 'potion_health_large';
 			default:
-				return null;
+				return 'loot_unknown';
 		}
 	};
 
@@ -402,8 +417,8 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		combat.lootDrops.push({
 			serverId: data.itemId,
 			itemId: itemId,
-			x: data.x || (model.userTadpole?.x || 0),
-			y: data.y || (model.userTadpole?.y || 0),
+			x: data.x !== undefined ? data.x : (model.userTadpole?.x || 0),
+			y: data.y !== undefined ? data.y : (model.userTadpole?.y || 0),
 			spawnTime: Date.now()
 		});
 	};

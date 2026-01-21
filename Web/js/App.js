@@ -41,17 +41,21 @@ var App = function(aSettings, aCanvas) {
 	  }
 
 		// Update usertadpole
-		if(keyNav.x != 0 || keyNav.y != 0) {
-			model.userTadpole.userUpdate(model.tadpoles, model.userTadpole.x + keyNav.x,model.userTadpole.y + keyNav.y);
-		}
-		else {
-			var mvp = getMouseWorldPosition();
-			mouse.worldx = mvp.x;
-			mouse.worldy = mvp.y;
-			model.userTadpole.userUpdate(model.tadpoles, mouse.worldx, mouse.worldy);
+		if (!window.inputState.isDead) {
+			if(keyNav.x != 0 || keyNav.y != 0) {
+				model.userTadpole.userUpdate(model.tadpoles, model.userTadpole.x + keyNav.x,model.userTadpole.y + keyNav.y);
+			}
+			else {
+				var mvp = getMouseWorldPosition();
+				mouse.worldx = mvp.x;
+				mouse.worldy = mvp.y;
+				model.userTadpole.userUpdate(model.tadpoles, mouse.worldx, mouse.worldy);
+			}
+		} else if (model.userTadpole) {
+			model.userTadpole.targetMomentum = 0;
 		}
 		
-		if(model.userTadpole.age % 6 == 0 && model.userTadpole.changed > 1 && webSocketService.hasConnection) {
+		if(!window.inputState.isDead && model.userTadpole.age % 6 == 0 && model.userTadpole.changed > 1 && webSocketService.hasConnection) {
 			model.userTadpole.changed = 0;
 			webSocketService.sendUpdate(model.userTadpole);
 		}
@@ -217,6 +221,9 @@ var App = function(aSettings, aCanvas) {
 	}
 	
 	app.mousedown = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Ignore if touching UI elements
 		if (e.target && e.target.closest && e.target.closest('#game-ui, .panel, #virtual-joystick, #boost-btn, #chat-container')) {
 			return;
@@ -248,6 +255,9 @@ var App = function(aSettings, aCanvas) {
 	};
 	
 	app.mousemove = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Always update mouse position for direction, even without click
 		mouse.x = e.clientX;
 		mouse.y = e.clientY;
@@ -262,6 +272,9 @@ var App = function(aSettings, aCanvas) {
 	};
 
 	app.keydown = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Don't handle keys if typing in input
 		var targetTag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
 		if (targetTag === 'input' || targetTag === 'textarea') {
@@ -315,6 +328,9 @@ var App = function(aSettings, aCanvas) {
 	};
 	
 	app.touchstart = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Don't handle touch if on UI elements (joystick handles its own events)
 		if (e.target && e.target.closest && e.target.closest('#game-ui, .panel, #virtual-joystick, #boost-btn, #chat-container')) {
 			return;
@@ -346,6 +362,9 @@ var App = function(aSettings, aCanvas) {
 		}
 	}
 	app.touchmove = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Don't update if using joystick
 		if (window.inputState.useJoystick) return;
 		

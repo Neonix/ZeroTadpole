@@ -49,6 +49,7 @@ class WorldServer
     public $eliteMobBroadcastInterval = 0.25;
     public $eliteMobMaxCount = 2;
     public $eliteMobNextId = 1;
+    public $respawnDelay = 3;
     
     
     public function __construct($id, $maxPlayers, $websocketServer)
@@ -77,7 +78,7 @@ class WorldServer
         
         $this->zoneGroupsReady = false;
         $this->safeZoneCenter = array('x' => 1, 'y' => 1);
-        $this->safeZoneRadius = 12;
+        $this->safeZoneRadius = 18;
         $this->safeZoneEnabled = true;
         $this->eliteMobs = array();
         $this->eliteMobLastSpawnAt = 0;
@@ -200,6 +201,9 @@ class WorldServer
         {
             $self->forEachCharacter(function($character) use ($self)
             {
+                if(property_exists($character, 'isDead') && $character->isDead) {
+                    return;
+                }
                 if(!$character->hasFullHealth()) 
                 {
                     $character->regenHealthBy(floor($character->maxHitPoints / 25));
@@ -977,13 +981,12 @@ class WorldServer
                     $this->handleItemDespawn($item);
                 }
             }
-    
             if($entity->type === "player") 
             {
-                $this->handlePlayerVanish($entity);
-                $this->pushToAdjacentGroups($entity->group, $entity->despawn());
+                $this->handlePlayerDeath($entity);
+                return;
             }
-    
+
             $this->removeEntity($entity);
         }
     }
@@ -1076,6 +1079,55 @@ class WorldServer
         }
         
         $this->handleEntityGroupMembership($player);
+    }
+
+    public function handlePlayerDeath($player)
+    {
+        if(!$player) {
+            return;
+        }
+        if(!empty($player->respawnTimeout)) {
+            return;
+        }
+        $player->isDead = true;
+        $player->hitPoints = 0;
+        $this->pushToPlayer($player, $player->health());
+        $this->handlePlayerVanish($player);
+        $this->pushToAdjacentGroups($player->group, $player->despawn(), $player->id);
+        if(!empty($player->respawnTimeout)) {
+            Timer::del($player->respawnTimeout);
+        }
+        $self = $this;
+        $player->respawnTimeout = Timer::add($this->respawnDelay, function() use ($self, $player) {
+            $self->respawnPlayer($player);
+        }, array(), false);
+    }
+
+    public function respawnPlayer($player)
+    {
+        if(!$player || !isset($this->players[$player->id])) {
+            return;
+        }
+        $player->respawnTimeout = 0;
+        $player->isDead = false;
+        $player->hitPoints = $player->maxHitPoints;
+        $pos = $this->getPlayerRespawnPosition($player);
+        $player->setPosition($pos['x'], $pos['y'], 0, 0);
+        $this->handleEntityGroupMembership($player);
+        $this->pushToPlayer($player, new Messages\HitPoints($player->maxHitPoints));
+        $this->pushToPlayer($player, $player->health());
+        $this->pushToPlayer($player, new Messages\Teleport($player));
+        $this->pushToAdjacentGroups($player->group, new Messages\Spawn($player), $player->id);
+    }
+
+    public function getPlayerRespawnPosition($player)
+    {
+        if($player->lastCheckpoint) {
+            return $player->lastCheckpoint->getRandomPosition();
+        }
+        $pos = $this->getSpawnPosition();
+        $this->ensureSafeZoneCenter($pos);
+        return $pos;
     }
     
     public function setPlayerCount($count) 

@@ -21,6 +21,7 @@ class Player extends Character
     public $weaponLevel = 0;
     public $formatChecker;
     public $firepotionTimeout = 0;
+    public $respawnTimeout = 0;
     public $exitCallback;
     public $moveCallback;
     public $lootmoveCallback;
@@ -79,6 +80,18 @@ class Player extends Character
         }
         
         $this->resetTimeout();
+
+        if ($this->isDead) {
+            if (
+                $action === TYPES_MESSAGES_MOVE
+                || $action === TYPES_MESSAGES_LOOTMOVE
+                || $action === TYPES_MESSAGES_ATTACK
+                || $action === TYPES_MESSAGES_HIT
+                || $action === TYPES_MESSAGES_HURT
+            ) {
+                return;
+            }
+        }
         
         if($action === TYPES_MESSAGES_HELLO) 
         {
@@ -93,6 +106,7 @@ class Player extends Character
             //$this->equipArmor($message[2]);
             //$this->equipWeapon($message[3]);
             $this->orientation = Utils::randomOrientation();
+            $this->hitPoints = $this->maxHitPoints;
             $this->updateHitPoints();
             $this->updatePosition();
             
@@ -110,6 +124,8 @@ class Player extends Character
             //$this->connection->send(json_encode(array(TYPES_MESSAGES_WELCOME, $this->id, $this->name, $this->x, $this->y, $this->hitPoints)));
             $this->hasEnteredGame = true;
             $this->isDead = false;
+            $this->server->pushToPlayer($this, new Messages\HitPoints($this->maxHitPoints));
+            $this->server->pushToPlayer($this, $this->health());
         }
         elseif($action == TYPES_MESSAGES_WHO || $action === 'who')
         {
@@ -409,6 +425,11 @@ class Player extends Character
         {
             Timer::del($this->firepotionTimeout);
             $this->firepotionTimeout = 0;
+        }
+        if(!empty($this->respawnTimeout))
+        {
+            Timer::del($this->respawnTimeout);
+            $this->respawnTimeout = 0;
         }
         Timer::del($this->disconnectTimeout);
         $this->disconnectTimeout = 0;

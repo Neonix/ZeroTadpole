@@ -52,6 +52,16 @@
             effect: { type: 'shield', duration: 5000 },
             dropRate: 0.08
         },
+        'loot_unknown': {
+            id: 'loot_unknown',
+            name: 'Butin Mystère',
+            icon: '🎁',
+            type: 'misc',
+            rarity: 'common',
+            description: 'Un butin étrange récupéré sur une créature.',
+            effect: null,
+            dropRate: 0
+        },
         
         // Spells
         'spell_bubble': {
@@ -171,8 +181,8 @@
             type: 'elite',
             hp: 100,
             maxHp: 100,
-            damage: 20,
-            speed: 2.5,
+            damage: 14,
+            speed: 1.9,
             size: 15,
             color: '#6b8cff',
             xpReward: 50,
@@ -689,7 +699,7 @@
             this.mobSpawnInterval = 5000; // 5 seconds
             this.maxMobs = 10;
             this.safeZoneCenter = null;
-            this.safeZoneRadius = 220;
+            this.safeZoneRadius = 320;
             this.serverControlledMobIds = new Set(['shark_mini', 'octopus_boss', 'leviathan']);
         }
         
@@ -727,16 +737,6 @@
                 return;
             }
             if (!this.safeZoneCenter) {
-                this.safeZoneCenter = {
-                    x: model.userTadpole.x,
-                    y: model.userTadpole.y
-                };
-                return;
-            }
-            const dx = model.userTadpole.x - this.safeZoneCenter.x;
-            const dy = model.userTadpole.y - this.safeZoneCenter.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > this.safeZoneRadius * 2) {
                 this.safeZoneCenter = {
                     x: model.userTadpole.x,
                     y: model.userTadpole.y
@@ -991,7 +991,8 @@
                             const dx = proj.x - mob.x;
                             const dy = proj.y - mob.y;
                             const dist = Math.sqrt(dx * dx + dy * dy);
-                            if (dist < mob.size + 5) {
+                            const hitRadius = mob.size + (proj.aoe ? 20 : 5);
+                            if (dist < hitRadius) {
                                 proj.hitMobs = true;
                                 if (window.showToast) {
                                     window.showToast(`${mob.icon} touché !`, 'info');
@@ -999,6 +1000,9 @@
                                 if (window.app && typeof window.app.sendEliteHit === 'function') {
                                     const damage = proj.damage + stats.attack;
                                     window.app.sendEliteHit(mob.serverId || mob.uniqueId, damage);
+                                    if (typeof mob.hp === 'number') {
+                                        mob.hp = Math.max(0, mob.hp - damage);
+                                    }
                                 }
                             }
                         }
