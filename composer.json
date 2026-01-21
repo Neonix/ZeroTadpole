@@ -1,4 +1,9 @@
 {
+    "autoload": {
+        "psr-4": {
+            "Server\\": "Server/"
+        }
+    },
     "require": {
         "workerman/workerman": "*"
     }
