@@ -434,17 +434,32 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 
 		if (data.action === 'despawn') {
 			if (existingIndex !== -1) {
+				combat.handleEliteMobDefeat(combat.mobs[existingIndex]);
 				combat.mobs.splice(existingIndex, 1);
+			} else if (data.mobType) {
+				var fallbackTemplate = window.GameSystems.MOBS ? window.GameSystems.MOBS[data.mobType] : null;
+				if (fallbackTemplate) {
+					combat.handleEliteMobDefeat(Object.assign({}, fallbackTemplate, data));
+				}
 			}
 			return;
 		}
 
 		var mobType = window.GameSystems.MOBS ? window.GameSystems.MOBS[data.mobType] : null;
 		if (existingIndex === -1) {
-			if (!mobType) {
-				return;
-			}
-			var mob = Object.assign({}, mobType, {
+			// Spawn nouveau mob
+			var baseMob = mobType || {
+				id: data.mobType,
+				mobType: data.mobType,
+				name: data.name || 'Créature',
+				icon: data.icon || '👾',
+				color: data.color || '#888',
+				size: data.size || 15,
+				damage: data.damage || 10,
+				speed: data.speed || 1.5
+			};
+			
+			var mob = Object.assign({}, baseMob, {
 				serverId: data.id,
 				uniqueId: data.id,
 				serverControlled: true,
@@ -463,9 +478,22 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 				prevServerUpdateAt: performance.now(),
 				serverUpdateInterval: 250,
 				hp: data.hp,
-				maxHp: data.maxHp
+				maxHp: data.maxHp,
+				// Nouveaux champs serveur
+				type: data.mobClass || baseMob.type || 'mob',
+				xpReward: data.xpReward || baseMob.xpReward || 10,
+				dropTable: data.dropTable || baseMob.dropTable || [],
+				dropChance: data.dropChance || baseMob.dropChance || 0.3,
+				guaranteedDrops: data.guaranteedDrops || baseMob.guaranteedDrops || 1
 			});
 			combat.mobs.push(mob);
+			
+			// Notification pour boss/elite
+			if (mob.type === 'boss') {
+				window.showToast && window.showToast('⚠️ ' + mob.icon + ' BOSS: ' + mob.name + ' apparaît !', 'warning');
+			} else if (mob.type === 'elite') {
+				window.showToast && window.showToast('⚔️ ' + mob.icon + ' Élite: ' + mob.name + ' repéré !', 'info');
+			}
 			return;
 		}
 
@@ -498,6 +526,9 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		}
 		if (data.mobType) {
 			existing.mobType = data.mobType;
+		}
+		if (data.mobClass) {
+			existing.type = data.mobClass;
 		}
 		existing.serverControlled = true;
 	}

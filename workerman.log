@@ -10,3 +10,19 @@
 2026-01-21 10:12:44 pid:9793 Workerman[start.php] received signal SIGINT
 2026-01-21 10:12:44 pid:9793 Workerman[start.php] stopping
 2026-01-21 10:12:44 pid:9793 Workerman[start.php] has been stopped
+2026-01-21 10:15:32 pid:9812 Workerman[start.php] start in DEBUG mode
+2026-01-21 10:23:51 pid:9812 Workerman[start.php] received signal SIGINT
+2026-01-21 10:23:51 pid:9812 Workerman[start.php] stopping
+2026-01-21 10:23:51 pid:9812 Workerman[start.php] has been stopped
+2026-01-21 10:28:00 pid:9843 Workerman[start.php] start in DEBUG mode
+2026-01-21 10:31:01 pid:9843 Workerman[start.php] received signal SIGINT
+2026-01-21 10:31:01 pid:9843 Workerman[start.php] stopping
+2026-01-21 10:31:01 pid:9843 Workerman[start.php] has been stopped
+2026-01-21 11:26:43 pid:10175 Workerman[start.php] start in DEBUG mode
+2026-01-21 11:32:59 pid:10175 Workerman[start.php] received signal SIGINT
+2026-01-21 11:32:59 pid:10175 Workerman[start.php] stopping
+2026-01-21 11:32:59 pid:10175 Workerman[start.php] has been stopped
+2026-01-21 11:33:03 pid:10198 Workerman[start.php] start in DEBUG mode
+2026-01-21 11:38:09 pid:10198 Workerman[start.php] received signal SIGINT
+2026-01-21 11:38:09 pid:10198 Workerman[start.php] stopping
+2026-01-21 11:38:09 pid:10198 Workerman[start.php] has been stopped

@@ -85,7 +85,7 @@
         dom.introPanel = document.getElementById('intro-panel');
         
         // Profile
-        dom.profileName = document.getElementById('profile-name');
+        dom.profileNameDisplay = document.getElementById('profile-name-display');
         dom.profileColor = document.getElementById('profile-color');
         dom.profileSave = document.getElementById('profile-save');
         dom.colorSwatches = document.getElementById('color-swatches');
@@ -313,7 +313,9 @@
         const hasChosenColor = storage.get('tadpole_color_chosen');
         const questsCompleted = parseInt(storage.get('tadpole_quests_completed', '0'), 10);
         
-        dom.profileName.value = savedName;
+        if (dom.profileNameDisplay) {
+            dom.profileNameDisplay.textContent = savedName || 'Têtard';
+        }
         dom.profileColor.value = savedColor;
         dom.introName.value = savedName;
         
@@ -508,7 +510,7 @@
     }
 
     function saveProfile() {
-        const name = dom.profileName.value.trim();
+        const name = storage.get('tadpole_name', '').trim();
         const color = dom.profileColor.value;
         const hasChosenColor = storage.get('tadpole_color_chosen');
         
@@ -516,9 +518,7 @@
             showToast('Entre un nom pour ton têtard !', 'warning');
             return;
         }
-        
-        storage.set('tadpole_name', name);
-        
+
         // Only update color if not definitively chosen, or allow minor changes
         if (!hasChosenColor) {
             storage.set('tadpole_color', color);
@@ -554,7 +554,9 @@
         storage.set('tadpole_has_seen', '1');
         storage.set('tadpole_quests_completed', '0');
         
-        dom.profileName.value = name;
+        if (dom.profileNameDisplay) {
+            dom.profileNameDisplay.textContent = name;
+        }
         dom.profileColor.value = defaultColor;
         updateTadpoleColor(defaultColor);
         updatePreviewCanvas(defaultColor);

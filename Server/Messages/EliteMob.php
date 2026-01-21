@@ -30,6 +30,7 @@ class EliteMob
                 'angle' => $this->mob['angle'],
                 'hp' => $this->mob['hp'],
                 'maxHp' => $this->mob['maxHp'],
+                'mobClass' => $this->mob['type'] ?? 'mob',
             );
         }
         return array(
@@ -50,6 +51,11 @@ class EliteMob
             'speed' => $this->mob['speed'],
             'size' => $this->mob['size'],
             'color' => $this->mob['color'],
+            'mobClass' => $this->mob['type'] ?? 'mob',
+            'xpReward' => $this->mob['xpReward'] ?? 10,
+            'dropTable' => $this->mob['dropTable'] ?? array(),
+            'dropChance' => $this->mob['dropChance'] ?? 0.3,
+            'guaranteedDrops' => $this->mob['guaranteedDrops'] ?? 1,
         );
     }
 }
