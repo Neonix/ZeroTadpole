@@ -1,1 +1,1 @@
-{"width": 172, "height": 314, "collisions": [], "doors": [], "checkpoints": [], "roamingAreas": [], "chestAreas": [], "staticChests": [], "staticEntities": {"1731": "guard", "1750": "rat", "1765": "goblin"}, "tilesize": 16}
+{"width": 1000, "height": 1000, "collisions": [], "doors": [], "checkpoints": [], "roamingAreas": [], "chestAreas": [], "staticChests": [], "staticEntities": {"1731": "guard", "1750": "rat", "1765": "goblin"}, "tilesize": 16}

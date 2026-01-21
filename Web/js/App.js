@@ -155,8 +155,14 @@ var App = function(aSettings, aCanvas) {
 		try {
 			var data = JSON.parse(e.data);
 			if (Array.isArray(data)) {
-				for (var i = 0; i < data.length; i++) {
-					webSocketService.processMessage(data[i]);
+				var isBatch = data.length
+					&& (Array.isArray(data[0]) || (data[0] && typeof data[0] === 'object' && data[0].type));
+				if (isBatch) {
+					for (var i = 0; i < data.length; i++) {
+						webSocketService.processMessage(data[i]);
+					}
+				} else {
+					webSocketService.processMessage(data);
 				}
 			} else {
 				webSocketService.processMessage(data);

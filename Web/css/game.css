@@ -872,15 +872,23 @@ body {
     height: 44px;
     border: none;
     border-radius: var(--radius-md);
-    background: var(--primary);
-    color: var(--bg-dark);
-    font-size: 1.1rem;
+    background: linear-gradient(145deg, #8ce6de, #4dbbb1);
+    color: #0a1628;
+    font-size: 1.15rem;
+    font-weight: 700;
+    box-shadow: 0 6px 14px rgba(12, 25, 44, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
     cursor: pointer;
     transition: var(--transition-fast);
 }
 
 .btn-send:hover {
-    background: var(--primary-dark);
+    transform: translateY(-1px);
+    background: linear-gradient(145deg, #9ff2eb, #56c8be);
+}
+
+.btn-send:active {
+    transform: translateY(1px);
+    box-shadow: 0 3px 8px rgba(12, 25, 44, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 /* ============================================

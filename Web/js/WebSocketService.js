@@ -14,6 +14,34 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		webSocket = nextSocket;
 	};
 
+	var ensureTadpole = function(id) {
+		if (id === undefined || id === null) {
+			return null;
+		}
+		if (!model.tadpoles[id]) {
+			var newTadpole = new Tadpole();
+			newTadpole.id = id;
+			model.tadpoles[id] = newTadpole;
+			model.arrows[id] = new Arrow(newTadpole, model.camera);
+		} else if (model.tadpoles[id] && model.tadpoles[id].id !== id) {
+			model.tadpoles[id].id = id;
+		}
+		return model.tadpoles[id];
+	};
+
+	var parseNumber = function(value) {
+		if (typeof value === 'number') {
+			return value;
+		}
+		if (typeof value === 'string') {
+			var trimmed = value.trim();
+			if (trimmed !== '' && !isNaN(trimmed)) {
+				return parseFloat(trimmed);
+			}
+		}
+		return null;
+	};
+
 	this.welcomeHandler = function(data) {
 		webSocketService.hasConnection = true;
 		reconnectAttempts = 0;
@@ -70,21 +98,41 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 	};
 
 	this.updateHandler = function(data) {
-		var newtp = false;
-
-		if(!model.tadpoles[data.id]) {
-			newtp = true;
-			model.tadpoles[data.id] = new Tadpole();
-			model.arrows[data.id] = new Arrow(model.tadpoles[data.id], model.camera);
+		if (data.id === undefined || data.id === null) {
+			return;
 		}
-
+		var newtp = false;
 		var tadpole = model.tadpoles[data.id];
+		if (!tadpole) {
+			newtp = true;
+			tadpole = ensureTadpole(data.id);
+		}
 
 		if(tadpole.id == model.userTadpole.id) {
 			tadpole.name = data.name;
 			if (data.color) {
 				tadpole.color = data.color;
 			}
+			var selfX = parseNumber(data.x);
+			var selfY = parseNumber(data.y);
+			if (selfX !== null && selfY !== null) {
+				tadpole.x = selfX;
+				tadpole.y = selfY;
+				tadpole.targetX = selfX;
+				tadpole.targetY = selfY;
+				if (window.GameSystems && window.GameSystems.combat && !window.GameSystems.combat.safeZoneCenter) {
+					window.GameSystems.combat.safeZoneCenter = { x: selfX, y: selfY };
+				}
+			}
+			var selfAngle = parseNumber(data.angle);
+			if (selfAngle !== null) {
+				tadpole.angle = selfAngle;
+			}
+			var selfMomentum = parseNumber(data.momentum);
+			if (selfMomentum !== null) {
+				tadpole.momentum = selfMomentum;
+			}
+			tadpole.timeSinceLastServerUpdate = 0;
 			return;
 		} else {
 			tadpole.name = data.name;
@@ -93,16 +141,25 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 			}
 		}
 
-		if(newtp) {
-			tadpole.x = data.x;
-			tadpole.y = data.y;
-		} else {
-			tadpole.targetX = data.x;
-			tadpole.targetY = data.y;
+		var nextX = parseNumber(data.x);
+		var nextY = parseNumber(data.y);
+		if (nextX !== null && nextY !== null) {
+			if(newtp) {
+				tadpole.x = nextX;
+				tadpole.y = nextY;
+			}
+			tadpole.targetX = nextX;
+			tadpole.targetY = nextY;
 		}
 
-		tadpole.angle = data.angle;
-		tadpole.momentum = data.momentum;
+		var nextAngle = parseNumber(data.angle);
+		if (nextAngle !== null) {
+			tadpole.angle = nextAngle;
+		}
+		var nextMomentum = parseNumber(data.momentum);
+		if (nextMomentum !== null) {
+			tadpole.momentum = nextMomentum;
+		}
 
 		tadpole.timeSinceLastServerUpdate = 0;
 	}
@@ -116,13 +173,11 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		}
 
 		var isNew = false;
-		if (!model.tadpoles[data.id]) {
-			isNew = true;
-			model.tadpoles[data.id] = new Tadpole();
-			model.arrows[data.id] = new Arrow(model.tadpoles[data.id], model.camera);
-		}
-
 		var tadpole = model.tadpoles[data.id];
+		if (!tadpole) {
+			isNew = true;
+			tadpole = ensureTadpole(data.id);
+		}
 
 		if (tadpole.id == model.userTadpole.id) {
 			return;
@@ -135,25 +190,128 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 			tadpole.color = data.color;
 		}
 
-		if (typeof data.x === 'number' && typeof data.y === 'number') {
+		var spawnX = parseNumber(data.x);
+		var spawnY = parseNumber(data.y);
+		if (spawnX !== null && spawnY !== null) {
 			if (isNew) {
-				tadpole.x = data.x;
-				tadpole.y = data.y;
-			} else {
-				tadpole.targetX = data.x;
-				tadpole.targetY = data.y;
+				tadpole.x = spawnX;
+				tadpole.y = spawnY;
 			}
+			tadpole.targetX = spawnX;
+			tadpole.targetY = spawnY;
 		}
 
-		if (typeof data.angle === 'number') {
-			tadpole.angle = data.angle;
+		var spawnAngle = parseNumber(data.angle);
+		if (spawnAngle !== null) {
+			tadpole.angle = spawnAngle;
 		}
-		if (typeof data.momentum === 'number') {
-			tadpole.momentum = data.momentum;
+		var spawnMomentum = parseNumber(data.momentum);
+		if (spawnMomentum !== null) {
+			tadpole.momentum = spawnMomentum;
 		}
 
 		tadpole.timeSinceLastServerUpdate = 0;
 	}
+
+	this.despawnHandler = function(data) {
+		if (!data || data.id === undefined || data.id === null) {
+			return;
+		}
+		this.closedHandler({ id: data.id });
+	}
+
+	this.teleportHandler = function(data) {
+		if (!data || data.id === undefined || data.id === null) {
+			return;
+		}
+		var tadpole = ensureTadpole(data.id);
+		if (!tadpole) {
+			return;
+		}
+		var nextX = parseNumber(data.x);
+		var nextY = parseNumber(data.y);
+		if (nextX !== null && nextY !== null) {
+			tadpole.x = nextX;
+			tadpole.y = nextY;
+			tadpole.targetX = nextX;
+			tadpole.targetY = nextY;
+		}
+		tadpole.timeSinceLastServerUpdate = 0;
+		if (tadpole.id == model.userTadpole.id && window.GameSystems && window.GameSystems.combat) {
+			window.GameSystems.combat.safeZoneCenter = { x: tadpole.x, y: tadpole.y };
+		}
+	}
+
+	this.healthHandler = function(data) {
+		if (!data || data.points === undefined) {
+			return;
+		}
+		if (window.GameSystems && window.GameSystems.playerStats) {
+			window.GameSystems.playerStats.hp = Math.max(0, Math.min(window.GameSystems.playerStats.maxHp, data.points));
+			window.GameSystems.playerStats.save();
+		}
+	}
+
+	this.damageHandler = function(data) {
+		if (!data || data.id === undefined) {
+			return;
+		}
+		if (window.GameSystems && window.GameSystems.combat) {
+			var combat = window.GameSystems.combat;
+			var mob = combat.mobs.find(function(entry) {
+				return entry.serverId === data.id || entry.uniqueId === data.id;
+			});
+			if (mob) {
+				if (data.maxHp !== undefined) {
+					mob.maxHp = data.maxHp;
+				}
+				if (data.hp !== undefined) {
+					mob.hp = data.hp;
+				}
+			}
+		}
+	}
+
+	this.hitpointsHandler = function(data) {
+		this.hitPointsHandler(data);
+	}
+
+	this.hitPointsHandler = function(data) {
+		if (!data || data.maxHp === undefined) {
+			return;
+		}
+		if (window.GameSystems && window.GameSystems.playerStats) {
+			window.GameSystems.playerStats.maxHp = data.maxHp;
+			if (window.GameSystems.playerStats.hp > data.maxHp) {
+				window.GameSystems.playerStats.hp = data.maxHp;
+			}
+			window.GameSystems.playerStats.save();
+		}
+	}
+
+	this.listHandler = function(data) {
+		if (!data || !Array.isArray(data.ids)) {
+			return;
+		}
+		var allowed = {};
+		data.ids.forEach(function(id) {
+			allowed[String(id)] = true;
+		});
+		var userId = model.userTadpole ? String(model.userTadpole.id) : null;
+		Object.keys(model.tadpoles).forEach(function(id) {
+			if (id === userId || id === 'npc-guide') {
+				return;
+			}
+			if (!allowed[id]) {
+				delete model.tadpoles[id];
+				delete model.arrows[id];
+			}
+		});
+	};
+
+	this.listsHandler = function(data) {
+		this.listHandler(data);
+	};
 
 	this.messageHandler = function(data) {
 		var tadpole = model.tadpoles[data.id];
@@ -368,7 +526,7 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 	this.processMessage = function(data) {
 		if (Array.isArray(data)) {
 			var legacyType = data[0];
-			if (legacyType === 'update') {
+			if (legacyType === 'update' || legacyType === 'move') {
 				this.updateHandler({
 					type: 'update',
 					id: data[1],
@@ -381,7 +539,7 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 					life: data[8],
 					authorized: data[9]
 				});
-			} else if (legacyType === 2) { // TYPES_MESSAGES_SPAWN
+			} else if (legacyType === 2 || legacyType === 'spawn') { // TYPES_MESSAGES_SPAWN
 				this.spawnHandler({
 					type: 'spawn',
 					id: data[1],
@@ -394,6 +552,11 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 					name: data[8],
 					color: data[9],
 					life: data[10]
+				});
+			} else if (legacyType === 3 || legacyType === 'despawn' || legacyType === 'closed') { // TYPES_MESSAGES_DESPAWN
+				this.despawnHandler({
+					type: 'despawn',
+					id: data[1]
 				});
 			} else if (legacyType === 'message') {
 				this.messageHandler({
@@ -416,7 +579,7 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 					type: 'players',
 					players: data[1]
 				});
-			} else if (legacyType === 17) { // TYPES_MESSAGES_POPULATION
+			} else if (legacyType === 17 || legacyType === 'population') { // TYPES_MESSAGES_POPULATION
 				this.populationHandler({
 					type: 'population',
 					world: data[1],
@@ -428,6 +591,20 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 					orbId: data[1],
 					playerId: data[2]
 				});
+			} else if (legacyType === 10 || legacyType === 'health') { // TYPES_MESSAGES_HEALTH
+				this.healthHandler({
+					type: 'health',
+					points: data[1],
+					isRegen: data[2] || false
+				});
+			} else if (legacyType === 16 || legacyType === 'damage') { // TYPES_MESSAGES_DAMAGE
+				this.damageHandler({
+					type: 'damage',
+					id: data[1],
+					points: data[2],
+					maxHp: data[3],
+					hp: data[4]
+				});
 			} else if (legacyType === 'spell') {
 				this.spellHandler({
 					type: 'spell',
@@ -437,7 +614,7 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 					y: data[4],
 					angle: data[5]
 				});
-			} else if (legacyType === 14) { // TYPES_MESSAGES_DROP
+			} else if (legacyType === 14 || legacyType === 'drop') { // TYPES_MESSAGES_DROP
 				this.dropHandler({
 					type: 'drop',
 					mobId: data[1],
@@ -447,8 +624,34 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 					y: data.length > 5 ? data[5] : undefined,
 					haters: data.length > 6 ? data[6] : undefined
 				});
+			} else if (legacyType === 19 || legacyType === 'list' || legacyType === 'lists') { // TYPES_MESSAGES_LIST
+				this.listHandler({
+					type: 'list',
+					ids: data.slice(1)
+				});
+			} else if (legacyType === 15 || legacyType === 'teleport') { // TYPES_MESSAGES_TELEPORT
+				this.teleportHandler({
+					type: 'teleport',
+					id: data[1],
+					x: data[2],
+					y: data[3]
+				});
+			} else if (legacyType === 23 || legacyType === 'hitpoints') { // TYPES_MESSAGES_HP
+				this.hitPointsHandler({
+					type: 'hitpoints',
+					maxHp: data[1]
+				});
 			}
 			return;
+		}
+		if (data && data.type === 'move') {
+			data.type = 'update';
+		}
+		if (data && data.type === 'hitpoints') {
+			data.type = 'hitPoints';
+		}
+		if (data && data.type === 'lists') {
+			data.type = 'list';
 		}
 		var fn = webSocketService[data.type + 'Handler'];
 		if (fn) {

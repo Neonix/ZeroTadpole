@@ -723,13 +723,25 @@
         }
 
         ensureSafeZone(model) {
-            if (this.safeZoneCenter || !model.userTadpole) {
+            if (!model.userTadpole) {
                 return;
             }
-            this.safeZoneCenter = {
-                x: model.userTadpole.x,
-                y: model.userTadpole.y
-            };
+            if (!this.safeZoneCenter) {
+                this.safeZoneCenter = {
+                    x: model.userTadpole.x,
+                    y: model.userTadpole.y
+                };
+                return;
+            }
+            const dx = model.userTadpole.x - this.safeZoneCenter.x;
+            const dy = model.userTadpole.y - this.safeZoneCenter.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > this.safeZoneRadius * 2) {
+                this.safeZoneCenter = {
+                    x: model.userTadpole.x,
+                    y: model.userTadpole.y
+                };
+            }
         }
 
         isInSafeZone(x, y) {
@@ -853,6 +865,11 @@
                     } else if (typeof mob.targetX === 'number' && typeof mob.targetY === 'number') {
                         mob.x += (mob.targetX - mob.x) * smoothFactor;
                         mob.y += (mob.targetY - mob.y) * smoothFactor;
+                    }
+                    if (this.safeZoneCenter && this.isInSafeZone(mob.x, mob.y)) {
+                        const angleAway = Math.atan2(mob.y - this.safeZoneCenter.y, mob.x - this.safeZoneCenter.x);
+                        mob.x += Math.cos(angleAway) * 2;
+                        mob.y += Math.sin(angleAway) * 2;
                     }
                     return;
                 }
@@ -1046,8 +1063,20 @@
             
             // Teleport to safe position
             if (model.userTadpole) {
-                model.userTadpole.x = 0;
-                model.userTadpole.y = 0;
+                if (!this.safeZoneCenter) {
+                    this.ensureSafeZone(model);
+                }
+                const safeCenter = this.safeZoneCenter || { x: 0, y: 0 };
+                model.userTadpole.x = safeCenter.x;
+                model.userTadpole.y = safeCenter.y;
+                model.userTadpole.targetX = safeCenter.x;
+                model.userTadpole.targetY = safeCenter.y;
+                model.userTadpole.momentum = 0;
+                model.userTadpole.targetMomentum = 0;
+                model.userTadpole.changed = 2;
+            }
+            if (window.GameSystems.gameState) {
+                window.GameSystems.gameState.shieldUntil = Date.now() + 3000;
             }
             
             if (window.showToast) {
@@ -1133,48 +1162,81 @@
                 context.translate(mob.x, mob.y);
                 context.rotate(angle);
 
-                const bodyGradient = context.createRadialGradient(-mob.size * 0.4, -mob.size * 0.2, 2, 0, 0, mob.size * 1.6);
-                bodyGradient.addColorStop(0, '#f7fbff');
-                bodyGradient.addColorStop(0.45, '#b0cdfa');
-                bodyGradient.addColorStop(1, '#5c87c7');
+                const bodyGradient = context.createRadialGradient(-mob.size * 0.5, -mob.size * 0.3, 2, 0, 0, mob.size * 1.8);
+                bodyGradient.addColorStop(0, '#f6fbff');
+                bodyGradient.addColorStop(0.35, '#b8d4ff');
+                bodyGradient.addColorStop(0.7, '#6f94d6');
+                bodyGradient.addColorStop(1, '#365a94');
                 context.fillStyle = bodyGradient;
+                context.shadowColor = 'rgba(70, 140, 255, 0.35)';
+                context.shadowBlur = mob.size * 0.6;
                 context.beginPath();
-                context.ellipse(0, 0, mob.size * 1.4, mob.size * 0.75, 0, 0, Math.PI * 2);
+                context.ellipse(0, 0, mob.size * 1.45, mob.size * 0.78, 0, 0, Math.PI * 2);
                 context.fill();
+                context.shadowBlur = 0;
 
                 // Belly highlight
                 context.beginPath();
-                context.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                context.ellipse(-mob.size * 0.1, mob.size * 0.2, mob.size * 0.7, mob.size * 0.3, 0, 0, Math.PI * 2);
+                context.fillStyle = 'rgba(255, 255, 255, 0.75)';
+                context.ellipse(-mob.size * 0.15, mob.size * 0.25, mob.size * 0.75, mob.size * 0.32, 0, 0, Math.PI * 2);
                 context.fill();
 
                 // Dorsal fin
                 context.beginPath();
-                context.fillStyle = 'rgba(90, 120, 170, 0.9)';
-                context.moveTo(-mob.size * 0.15, -mob.size * 0.95);
-                context.lineTo(mob.size * 0.4, -mob.size * 0.1);
-                context.lineTo(-mob.size * 0.6, -mob.size * 0.2);
+                context.fillStyle = 'rgba(80, 120, 185, 0.95)';
+                context.moveTo(-mob.size * 0.2, -mob.size * 1.05);
+                context.lineTo(mob.size * 0.55, -mob.size * 0.2);
+                context.lineTo(-mob.size * 0.7, -mob.size * 0.3);
+                context.closePath();
+                context.fill();
+
+                // Side fin
+                context.beginPath();
+                context.fillStyle = 'rgba(60, 95, 160, 0.9)';
+                context.moveTo(mob.size * 0.1, mob.size * 0.15);
+                context.lineTo(mob.size * 0.55, mob.size * 0.55);
+                context.lineTo(mob.size * 0.05, mob.size * 0.45);
                 context.closePath();
                 context.fill();
 
                 // Tail fin
                 context.beginPath();
-                context.fillStyle = 'rgba(35, 60, 110, 0.7)';
-                context.moveTo(mob.size * 1.2, 0);
-                context.lineTo(mob.size * 1.9, -mob.size * 0.7);
-                context.lineTo(mob.size * 1.5, 0);
-                context.lineTo(mob.size * 1.9, mob.size * 0.7);
+                const tailGradient = context.createLinearGradient(mob.size * 1.1, 0, mob.size * 2.2, 0);
+                tailGradient.addColorStop(0, 'rgba(60, 90, 150, 0.9)');
+                tailGradient.addColorStop(1, 'rgba(20, 45, 95, 0.7)');
+                context.fillStyle = tailGradient;
+                context.moveTo(mob.size * 1.25, 0);
+                context.lineTo(mob.size * 2.1, -mob.size * 0.8);
+                context.lineTo(mob.size * 1.55, 0);
+                context.lineTo(mob.size * 2.1, mob.size * 0.8);
                 context.closePath();
                 context.fill();
 
                 // Gills
-                context.strokeStyle = 'rgba(25, 45, 80, 0.4)';
+                context.strokeStyle = 'rgba(25, 45, 80, 0.45)';
                 context.lineWidth = 1;
                 for (let i = 0; i < 3; i += 1) {
                     context.beginPath();
-                    context.moveTo(-mob.size * 0.4, -mob.size * 0.25 + i * mob.size * 0.2);
-                    context.lineTo(-mob.size * 0.15, -mob.size * 0.1 + i * mob.size * 0.2);
+                    context.moveTo(-mob.size * 0.45, -mob.size * 0.25 + i * mob.size * 0.22);
+                    context.lineTo(-mob.size * 0.1, -mob.size * 0.15 + i * mob.size * 0.22);
                     context.stroke();
+                }
+
+                // Mouth line + teeth
+                context.beginPath();
+                context.strokeStyle = 'rgba(15, 30, 55, 0.8)';
+                context.lineWidth = 1.2;
+                context.moveTo(-mob.size * 0.95, mob.size * 0.2);
+                context.quadraticCurveTo(-mob.size * 0.6, mob.size * 0.45, -mob.size * 0.2, mob.size * 0.3);
+                context.stroke();
+                context.fillStyle = 'rgba(245, 250, 255, 0.85)';
+                for (let i = 0; i < 4; i += 1) {
+                    context.beginPath();
+                    context.moveTo(-mob.size * 0.8 + i * mob.size * 0.18, mob.size * 0.23);
+                    context.lineTo(-mob.size * 0.74 + i * mob.size * 0.18, mob.size * 0.32);
+                    context.lineTo(-mob.size * 0.68 + i * mob.size * 0.18, mob.size * 0.23);
+                    context.closePath();
+                    context.fill();
                 }
 
                 // Eye
@@ -1189,8 +1251,8 @@
 
                 // Nose highlight
                 context.beginPath();
-                context.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                context.ellipse(-mob.size * 1.2, 0, mob.size * 0.15, mob.size * 0.08, 0, 0, Math.PI * 2);
+                context.fillStyle = 'rgba(255, 255, 255, 0.55)';
+                context.ellipse(-mob.size * 1.2, 0, mob.size * 0.16, mob.size * 0.09, 0, 0, Math.PI * 2);
                 context.fill();
 
                 context.restore();
