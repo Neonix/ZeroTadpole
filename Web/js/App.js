@@ -198,6 +198,14 @@ var App = function(aSettings, aCanvas) {
 		webSocketService.sendPrivateMessage(targetId, message);
 	}
 
+	app.setPvpEnabled = function(enabled) {
+		webSocketService.sendPvpToggle(enabled);
+	}
+
+	app.sendEliteHit = function(mobId, damage) {
+		webSocketService.sendEliteHit(mobId, damage);
+	}
+
 	app.sendSpell = function(spellId, x, y, angle) {
 		webSocketService.sendSpell(spellId, x, y, angle);
 	}

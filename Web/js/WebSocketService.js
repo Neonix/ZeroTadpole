@@ -107,6 +107,54 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		tadpole.timeSinceLastServerUpdate = 0;
 	}
 
+	this.spawnHandler = function(data) {
+		if (data.entityType && data.entityType !== 'player') {
+			return;
+		}
+		if (data.id === undefined || data.id === null) {
+			return;
+		}
+
+		var isNew = false;
+		if (!model.tadpoles[data.id]) {
+			isNew = true;
+			model.tadpoles[data.id] = new Tadpole();
+			model.arrows[data.id] = new Arrow(model.tadpoles[data.id], model.camera);
+		}
+
+		var tadpole = model.tadpoles[data.id];
+
+		if (tadpole.id == model.userTadpole.id) {
+			return;
+		}
+
+		if (data.name) {
+			tadpole.name = data.name;
+		}
+		if (data.color) {
+			tadpole.color = data.color;
+		}
+
+		if (typeof data.x === 'number' && typeof data.y === 'number') {
+			if (isNew) {
+				tadpole.x = data.x;
+				tadpole.y = data.y;
+			} else {
+				tadpole.targetX = data.x;
+				tadpole.targetY = data.y;
+			}
+		}
+
+		if (typeof data.angle === 'number') {
+			tadpole.angle = data.angle;
+		}
+		if (typeof data.momentum === 'number') {
+			tadpole.momentum = data.momentum;
+		}
+
+		tadpole.timeSinceLastServerUpdate = 0;
+	}
+
 	this.messageHandler = function(data) {
 		var tadpole = model.tadpoles[data.id];
 		if (tadpole) {
@@ -137,6 +185,11 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 			delete model.tadpoles[data.id];
 			delete model.arrows[data.id];
 		}
+		if (window.GameSystems && window.GameSystems.combat) {
+			window.GameSystems.combat.lootDrops = window.GameSystems.combat.lootDrops.filter(function(loot) {
+				return loot.serverId !== data.id;
+			});
+		}
 	}
 
 	this.redirectHandler = function(data) {
@@ -158,6 +211,117 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		if (playerCountEl) {
 			playerCountEl.textContent = totalPlayers;
 		}
+	}
+
+	var mapServerItemKindToClient = function(kind) {
+		switch (kind) {
+			case 35: // TYPES_ENTITIES_FLASK
+				return 'potion_health';
+			case 36: // TYPES_ENTITIES_BURGER
+				return 'potion_health_large';
+			case 38: // TYPES_ENTITIES_FIREPOTION
+				return 'shield_bubble';
+			default:
+				return null;
+		}
+	};
+
+	this.dropHandler = function(data) {
+		if (!window.GameSystems || !window.GameSystems.combat) {
+			return;
+		}
+		var itemId = mapServerItemKindToClient(data.kind);
+		if (!itemId) {
+			return;
+		}
+		var combat = window.GameSystems.combat;
+		var existing = combat.lootDrops.find(function(loot) {
+			return loot.serverId === data.itemId;
+		});
+		if (existing) {
+			return;
+		}
+		combat.lootDrops.push({
+			serverId: data.itemId,
+			itemId: itemId,
+			x: data.x || (model.userTadpole?.x || 0),
+			y: data.y || (model.userTadpole?.y || 0),
+			spawnTime: Date.now()
+		});
+	};
+
+	this.elite_mobHandler = function(data) {
+		if (!window.GameSystems || !window.GameSystems.combat) {
+			return;
+		}
+		var combat = window.GameSystems.combat;
+		var existingIndex = combat.mobs.findIndex(function(mob) {
+			return mob.serverId === data.id;
+		});
+
+		if (data.action === 'despawn') {
+			if (existingIndex !== -1) {
+				combat.mobs.splice(existingIndex, 1);
+			}
+			return;
+		}
+
+		var mobType = window.GameSystems.MOBS ? window.GameSystems.MOBS[data.mobType] : null;
+		if (existingIndex === -1) {
+			if (!mobType) {
+				return;
+			}
+			var mob = Object.assign({}, mobType, {
+				serverId: data.id,
+				uniqueId: data.id,
+				serverControlled: true,
+				x: data.x,
+				y: data.y,
+				prevX: data.x,
+				prevY: data.y,
+				targetX: data.x,
+				targetY: data.y,
+				angle: data.angle,
+				prevAngle: data.angle,
+				targetAngle: data.angle,
+				vx: data.vx || 0,
+				vy: data.vy || 0,
+				lastServerUpdateAt: performance.now(),
+				prevServerUpdateAt: performance.now(),
+				hp: data.hp,
+				maxHp: data.maxHp
+			});
+			combat.mobs.push(mob);
+			return;
+		}
+
+		var existing = combat.mobs[existingIndex];
+		if (!mobType && existing.mobType) {
+			mobType = window.GameSystems.MOBS ? window.GameSystems.MOBS[existing.mobType] : null;
+		}
+		existing.prevX = existing.x;
+		existing.prevY = existing.y;
+		existing.x = data.x;
+		existing.y = data.y;
+		existing.targetX = data.x;
+		existing.targetY = data.y;
+		existing.prevAngle = existing.angle;
+		existing.angle = data.angle;
+		existing.targetAngle = data.angle;
+		existing.vx = data.vx || 0;
+		existing.vy = data.vy || 0;
+		existing.prevServerUpdateAt = existing.lastServerUpdateAt || performance.now();
+		existing.lastServerUpdateAt = performance.now();
+		if (data.hp !== undefined) {
+			existing.hp = data.hp;
+		}
+		if (data.maxHp !== undefined) {
+			existing.maxHp = data.maxHp;
+		}
+		if (data.mobType) {
+			existing.mobType = data.mobType;
+		}
+		existing.serverControlled = true;
 	}
 
 	// Handler for common orb collection broadcast
@@ -197,6 +361,18 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 	}
 
 	this.processMessage = function(data) {
+		if (Array.isArray(data)) {
+			var legacyType = data[0];
+			if (legacyType === 14) { // TYPES_MESSAGES_DROP
+				this.dropHandler({
+					type: 'drop',
+					mobId: data[1],
+					itemId: data[2],
+					kind: data[3]
+				});
+			}
+			return;
+		}
 		var fn = webSocketService[data.type + 'Handler'];
 		if (fn) {
 			fn(data);
@@ -333,6 +509,14 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 
 	this.sendPrivateMessage = function(targetId, message) {
 		webSocket.send(JSON.stringify({type: 'private', target: targetId, message: message}));
+	}
+
+	this.sendPvpToggle = function(enabled) {
+		webSocket.send(JSON.stringify({type: 'pvp', enabled: enabled}));
+	}
+
+	this.sendEliteHit = function(mobId, damage) {
+		webSocket.send(JSON.stringify({type: 'elite_hit', id: mobId, damage: damage}));
 	}
 
 	var ensureGuideNpc = function() {

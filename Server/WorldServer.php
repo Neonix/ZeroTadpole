@@ -43,6 +43,12 @@ class WorldServer
     public $safeZoneCenter;
     public $safeZoneRadius;
     public $safeZoneEnabled;
+    public $eliteMobs = array();
+    public $eliteMobLastSpawnAt = 0;
+    public $eliteMobSpawnInterval = 8;
+    public $eliteMobBroadcastInterval = 0.25;
+    public $eliteMobMaxCount = 2;
+    public $eliteMobNextId = 1;
     
     
     public function __construct($id, $maxPlayers, $websocketServer)
@@ -73,6 +79,8 @@ class WorldServer
         $this->safeZoneCenter = array('x' => 1, 'y' => 1);
         $this->safeZoneRadius = 12;
         $this->safeZoneEnabled = true;
+        $this->eliteMobs = array();
+        $this->eliteMobLastSpawnAt = 0;
         $self = $this;
 
         //Quand un player ce connect
@@ -105,6 +113,7 @@ class WorldServer
                     $self->pushToPlayer($player, new Messages\Population($self->playerCount, 1));
                     $self->updatePopulation($self->playerCount);
                     $self->pushRelevantEntityListTo($player);
+                    $self->pushEliteMobsToPlayer($player);
                 
                     $moveCallback = function($x, $y) use($player, $self)
                     {
@@ -270,8 +279,13 @@ class WorldServer
         $regenCount = $this->ups * 2;
         $updateCount = 0;
 
-        Timer::add(1/$this->ups, function() use ($self, $regenCount, &$updateCount)
+        $lastTickAt = microtime(true);
+        Timer::add(1/$this->ups, function() use ($self, $regenCount, &$updateCount, &$lastTickAt)
         {
+            $now = microtime(true);
+            $delta = $now - $lastTickAt;
+            $lastTickAt = $now;
+            $self->updateEliteMobs($delta);
             $self->processGroups();
             $self->processQueues();
         /*
@@ -332,7 +346,16 @@ class WorldServer
             if($entities) 
             {
                 $this->pushToPlayer($player, new Messages\Lists($entities));
+                $this->pushSpawnsToPlayer($player, $entities);
             }
+        }
+    }
+
+    public function pushEliteMobsToPlayer($player)
+    {
+        foreach($this->eliteMobs as $mob)
+        {
+            $this->pushToPlayer($player, new Messages\EliteMob($mob, 'spawn'));
         }
     }
     
@@ -365,7 +388,10 @@ class WorldServer
     }
     
     public function pushToGroup($groupId, $message, $ignoredPlayer=null) {
-        $group = $this->groups[$groupId];
+        if($groupId === null || $groupId === '') {
+            return;
+        }
+        $group = $this->groups[$groupId] ?? null;
         if($group) 
         {
             foreach($group->players as $playerId)
@@ -579,6 +605,235 @@ class WorldServer
         {
             call_user_func($callback, $mob);
         }
+    }
+
+    public function getEliteMobDefinitions()
+    {
+        return array(
+            'shark_mini' => array(
+                'mobType' => 'shark_mini',
+                'name' => 'Requin Juvenile',
+                'icon' => '🦈',
+                'hp' => 100,
+                'maxHp' => 100,
+                'damage' => 20,
+                'speed' => 2.5,
+                'size' => 15,
+                'color' => '#6b8cff',
+                'type' => 'elite',
+                'spawnWeight' => 15,
+            ),
+            'octopus_boss' => array(
+                'mobType' => 'octopus_boss',
+                'name' => 'Poulpe Ancien',
+                'icon' => '🐙',
+                'hp' => 300,
+                'maxHp' => 300,
+                'damage' => 35,
+                'speed' => 1.2,
+                'size' => 25,
+                'color' => '#9b59b6',
+                'type' => 'boss',
+                'spawnWeight' => 5,
+            ),
+            'leviathan' => array(
+                'mobType' => 'leviathan',
+                'name' => 'Léviathan',
+                'icon' => '🐉',
+                'hp' => 500,
+                'maxHp' => 500,
+                'damage' => 50,
+                'speed' => 1.8,
+                'size' => 35,
+                'color' => '#e74c3c',
+                'type' => 'boss',
+                'spawnWeight' => 2,
+            ),
+        );
+    }
+
+    public function updateEliteMobs($delta)
+    {
+        if(empty($this->players)) {
+            return;
+        }
+        $now = microtime(true);
+        if($now - $this->eliteMobLastSpawnAt >= $this->eliteMobSpawnInterval) {
+            if(count($this->eliteMobs) < $this->eliteMobMaxCount) {
+                if($this->spawnEliteMob()) {
+                    $this->eliteMobLastSpawnAt = $now;
+                }
+            }
+        }
+
+        foreach($this->eliteMobs as $id => &$mob)
+        {
+            $this->updateEliteMobState($mob, $delta);
+        }
+        unset($mob);
+    }
+
+    public function spawnEliteMob()
+    {
+        $definitions = $this->getEliteMobDefinitions();
+        $totalWeight = 0;
+        foreach($definitions as $def) {
+            $totalWeight += $def['spawnWeight'];
+        }
+        $roll = mt_rand() / mt_getrandmax() * $totalWeight;
+        $selected = null;
+        foreach($definitions as $def) {
+            $roll -= $def['spawnWeight'];
+            if($roll <= 0) {
+                $selected = $def;
+                break;
+            }
+        }
+        if(!$selected) {
+            return false;
+        }
+
+        $player = Utils::detect($this->players, function($player) {
+            return $player !== null;
+        });
+        if(!$player) {
+            return false;
+        }
+
+        $angle = (mt_rand() / mt_getrandmax()) * M_PI * 2;
+        $distance = 200 + (mt_rand() / mt_getrandmax()) * 300;
+        $x = $player->x + cos($angle) * $distance;
+        $y = $player->y + sin($angle) * $distance;
+
+        if($this->isInSafeZone($x, $y)) {
+            $escapeAngle = atan2($y - $this->safeZoneCenter['y'], $x - $this->safeZoneCenter['x']);
+            $x = $this->safeZoneCenter['x'] + cos($escapeAngle) * ($this->safeZoneRadius + 30);
+            $y = $this->safeZoneCenter['y'] + sin($escapeAngle) * ($this->safeZoneRadius + 30);
+        }
+
+        $mob = array(
+            'id' => 'elite-' . $this->eliteMobNextId++,
+            'mobType' => $selected['mobType'],
+            'name' => $selected['name'],
+            'icon' => $selected['icon'],
+            'x' => $x,
+            'y' => $y,
+            'vx' => 0,
+            'vy' => 0,
+            'angle' => $angle,
+            'hp' => $selected['hp'],
+            'maxHp' => $selected['maxHp'],
+            'damage' => $selected['damage'],
+            'speed' => $selected['speed'],
+            'size' => $selected['size'],
+            'color' => $selected['color'],
+            'type' => $selected['type'],
+            'targetId' => null,
+            'lastAttackAt' => 0,
+            'attackCooldown' => 1.5,
+            'lastBroadcastAt' => 0,
+        );
+
+        $this->eliteMobs[$mob['id']] = $mob;
+        $this->pushBroadcast(new Messages\EliteMob($mob, 'spawn'));
+        return true;
+    }
+
+    public function updateEliteMobState(&$mob, $delta)
+    {
+        $prevX = $mob['x'];
+        $prevY = $mob['y'];
+        $player = $this->getClosestPlayerForMob($mob);
+        if($player) {
+            $dx = $player->x - $mob['x'];
+            $dy = $player->y - $mob['y'];
+            $dist = sqrt($dx * $dx + $dy * $dy);
+            if($dist < 300) {
+                $mob['angle'] = atan2($dy, $dx);
+                $mob['x'] += cos($mob['angle']) * $mob['speed'];
+                $mob['y'] += sin($mob['angle']) * $mob['speed'];
+                $this->handleEliteMobAttack($mob, $player, $dist);
+            } else {
+                if(mt_rand(0, 100) < 8) {
+                    $mob['angle'] += (mt_rand() / mt_getrandmax() - 0.5) * 0.6;
+                }
+                $mob['x'] += cos($mob['angle']) * $mob['speed'] * 0.4;
+                $mob['y'] += sin($mob['angle']) * $mob['speed'] * 0.4;
+            }
+        } else {
+            if(mt_rand(0, 100) < 8) {
+                $mob['angle'] += (mt_rand() / mt_getrandmax() - 0.5) * 0.6;
+            }
+            $mob['x'] += cos($mob['angle']) * $mob['speed'] * 0.4;
+            $mob['y'] += sin($mob['angle']) * $mob['speed'] * 0.4;
+        }
+
+        $deltaSeconds = max(0.001, (float) $delta);
+        $mob['vx'] = ($mob['x'] - $prevX) / $deltaSeconds;
+        $mob['vy'] = ($mob['y'] - $prevY) / $deltaSeconds;
+
+        $now = microtime(true);
+        if(($now - $mob['lastBroadcastAt']) >= $this->eliteMobBroadcastInterval) {
+            $mob['lastBroadcastAt'] = $now;
+            $this->pushBroadcast(new Messages\EliteMob($mob, 'update'));
+        }
+    }
+
+    public function getClosestPlayerForMob($mob)
+    {
+        $closestPlayer = null;
+        $closestDistance = null;
+        foreach($this->players as $player)
+        {
+            if($this->isPlayerInSafeZone($player) || $player->hitPoints <= 0) {
+                continue;
+            }
+            $dx = $player->x - $mob['x'];
+            $dy = $player->y - $mob['y'];
+            $dist = sqrt($dx * $dx + $dy * $dy);
+            if($closestDistance === null || $dist < $closestDistance) {
+                $closestDistance = $dist;
+                $closestPlayer = $player;
+            }
+        }
+        return $closestPlayer;
+    }
+
+    public function handleEliteMobAttack(&$mob, $player, $distance)
+    {
+        if($this->isPlayerInSafeZone($player)) {
+            return;
+        }
+        $now = microtime(true);
+        if($distance < ($mob['size'] + 6) && ($now - $mob['lastAttackAt']) > $mob['attackCooldown']) {
+            $mob['lastAttackAt'] = $now;
+            $player->hitPoints -= $mob['damage'];
+            if($player->hitPoints <= 0) {
+                $player->isDead = true;
+            }
+            $this->handleHurtEntity($player, null, $mob['damage']);
+        }
+    }
+
+    public function handleEliteMobHit($mobId, $damage, $attacker)
+    {
+        if($attacker && $this->isPlayerInSafeZone($attacker)) {
+            return;
+        }
+        $damage = max(1, min(200, (int) $damage));
+        if(!isset($this->eliteMobs[$mobId])) {
+            return;
+        }
+        $mob = $this->eliteMobs[$mobId];
+        $mob['hp'] -= $damage;
+        if($mob['hp'] <= 0) {
+            unset($this->eliteMobs[$mobId]);
+            $mob['hp'] = 0;
+            $this->pushBroadcast(new Messages\EliteMob($mob, 'despawn'));
+            return;
+        }
+        $this->eliteMobs[$mobId] = $mob;
+        $this->pushBroadcast(new Messages\EliteMob($mob, 'update'));
     }
     
     public function forEachCharacter($callback) 

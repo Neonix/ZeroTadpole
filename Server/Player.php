@@ -30,6 +30,7 @@ class Player extends Character
     public $broadcastCallback;
     public $broadcastzoneCallback;
     public $requestposCallback;
+    public $pvpEnabled = false;
     
     public function __construct($connection, $worldServer)
     {
@@ -114,6 +115,12 @@ class Player extends Character
         {
             $this->server->pushToPlayer($this, new Messages\PlayerList($this->server->getPlayerList()));
         }
+        else if($action === 'pvp') {
+            $enabled = isset($message["enabled"]) ? (bool) $message["enabled"] : null;
+            if ($enabled !== null) {
+                $this->pvpEnabled = $enabled;
+            }
+        }
         else if($action === 'private') {
             $targetId = isset($message["target"]) ? (int)$message["target"] : null;
             $msg = isset($message["message"]) ? trim((string) $message["message"]) : '';
@@ -139,6 +146,13 @@ class Player extends Character
             $orbId = isset($message["orbId"]) ? (string) $message["orbId"] : null;
             if($orbId !== null) {
                 $this->broadcastToZone(new Messages\Orb($orbId, $this->id), true);
+            }
+        }
+        else if($action === 'elite_hit') {
+            $mobId = isset($message["id"]) ? (string) $message["id"] : '';
+            $damage = isset($message["damage"]) ? (int) $message["damage"] : 0;
+            if($mobId !== '' && $damage > 0) {
+                $this->server->handleEliteMobHit($mobId, $damage, $this);
             }
         }
         else if($action == TYPES_MESSAGES_MOVE) {
@@ -223,24 +237,55 @@ class Player extends Character
             }
         }
         else if($action == TYPES_MESSAGES_ATTACK) {
-            $mob = $this->server->getEntityById($message[1]);
-            if($mob) 
+            $target = $this->server->getEntityById($message[1]);
+            if($target) 
             {
-                $this->setTarget($mob);
+                if($target instanceof Player) {
+                    if(
+                        !$this->pvpEnabled
+                        || !$target->pvpEnabled
+                        || $this->server->isPlayerInSafeZone($this)
+                        || $this->server->isPlayerInSafeZone($target)
+                    ) {
+                        return;
+                    }
+                }
+                $this->setTarget($target);
                 $this->server->broadcastAttacker($this);
             }
         }
         else if($action == TYPES_MESSAGES_HIT) {
-            $mob = $this->server->getEntityById($message[1]);
-            if($mob) 
+            $target = $this->server->getEntityById($message[1]);
+            if($target) 
             {
-                $dmg = Formulas::dmg($this->weaponLevel, $mob->armorLevel);
+                if($target instanceof Player) {
+                    if(
+                        !$this->pvpEnabled
+                        || !$target->pvpEnabled
+                        || $this->server->isPlayerInSafeZone($this)
+                        || $this->server->isPlayerInSafeZone($target)
+                        || $target->hitPoints <= 0
+                    ) {
+                        return;
+                    }
+                    $dmg = Formulas::dmg($this->weaponLevel, $target->armorLevel);
+                    if($dmg > 0) {
+                        $target->hitPoints -= $dmg;
+                        if($target->hitPoints <= 0) {
+                            $target->isDead = true;
+                        }
+                        $this->server->handleHurtEntity($target, $this, $dmg);
+                    }
+                    return;
+                }
+
+                $dmg = Formulas::dmg($this->weaponLevel, $target->armorLevel);
                 
-                if($dmg > 0 && is_callable(array($mob, 'receiveDamage')))
+                if($dmg > 0 && is_callable(array($target, 'receiveDamage')))
                 {
-                    $mob->receiveDamage($dmg, $this->id);
-                    $this->server->handleMobHate($mob->id, $this->id, $dmg);
-                    $this->server->handleHurtEntity($mob, $this, $dmg);
+                    $target->receiveDamage($dmg, $this->id);
+                    $this->server->handleMobHate($target->id, $this->id, $dmg);
+                    $this->server->handleHurtEntity($target, $this, $dmg);
                 }
             }
         }

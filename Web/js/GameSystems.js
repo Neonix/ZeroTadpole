@@ -690,6 +690,7 @@
             this.maxMobs = 10;
             this.safeZoneCenter = null;
             this.safeZoneRadius = 220;
+            this.serverControlledMobIds = new Set(['shark_mini', 'octopus_boss', 'leviathan']);
         }
         
         update(model, deltaTime) {
@@ -752,6 +753,9 @@
             let random = Math.random() * totalWeight;
             
             for (const mobType of Object.values(MOBS)) {
+                if (this.serverControlledMobIds.has(mobType.id)) {
+                    continue;
+                }
                 random -= mobType.spawnWeight;
                 if (random <= 0) {
                     this.spawnMob(mobType, model);
@@ -805,8 +809,51 @@
         updateMobs(model, deltaTime) {
             const playerX = model.userTadpole?.x || 0;
             const playerY = model.userTadpole?.y || 0;
+            const smoothFactor = Math.min(1, Math.max(0.05, deltaTime / 120));
+            const deltaSeconds = Math.max(0.001, deltaTime / 1000);
+            const now = performance.now();
+            const interpolationDelay = 120;
             
             this.mobs.forEach(mob => {
+                if (mob.serverControlled) {
+                    if (mob.type === undefined && mob.mobType && window.GameSystems && window.GameSystems.MOBS) {
+                        const mobTemplate = window.GameSystems.MOBS[mob.mobType];
+                        if (mobTemplate && mobTemplate.type) {
+                            mob.type = mobTemplate.type;
+                        }
+                    }
+                    if (
+                        typeof mob.prevX === 'number'
+                        && typeof mob.prevY === 'number'
+                        && typeof mob.targetX === 'number'
+                        && typeof mob.targetY === 'number'
+                        && typeof mob.lastServerUpdateAt === 'number'
+                        && typeof mob.prevServerUpdateAt === 'number'
+                    ) {
+                        const serverDelta = Math.max(16, mob.lastServerUpdateAt - mob.prevServerUpdateAt);
+                        const renderTime = now - interpolationDelay;
+                        const alpha = Math.max(0, (renderTime - mob.prevServerUpdateAt) / serverDelta);
+                        if (alpha <= 1) {
+                            mob.x = mob.prevX + (mob.targetX - mob.prevX) * alpha;
+                            mob.y = mob.prevY + (mob.targetY - mob.prevY) * alpha;
+                        } else if (typeof mob.vx === 'number' && typeof mob.vy === 'number') {
+                            mob.x += mob.vx * deltaSeconds;
+                            mob.y += mob.vy * deltaSeconds;
+                        }
+                        if (typeof mob.targetAngle === 'number') {
+                            const baseAngle = typeof mob.prevAngle === 'number' ? mob.prevAngle : mob.angle;
+                            const angleDiff = ((mob.targetAngle - baseAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+                            mob.angle = baseAngle + angleDiff * Math.min(1, alpha) * smoothFactor;
+                        }
+                    } else if (typeof mob.vx === 'number' && typeof mob.vy === 'number') {
+                        mob.x += mob.vx * deltaSeconds;
+                        mob.y += mob.vy * deltaSeconds;
+                    } else if (typeof mob.targetX === 'number' && typeof mob.targetY === 'number') {
+                        mob.x += (mob.targetX - mob.x) * smoothFactor;
+                        mob.y += (mob.targetY - mob.y) * smoothFactor;
+                    }
+                    return;
+                }
                 // AI: Move towards player if close enough
                 const dx = playerX - mob.x;
                 const dy = playerY - mob.y;
@@ -892,6 +939,9 @@
             
             // Mob-Player collisions
             this.mobs.forEach(mob => {
+                if (mob.serverControlled) {
+                    return;
+                }
                 const dx = playerX - mob.x;
                 const dy = playerY - mob.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -917,6 +967,24 @@
                 if (proj.hitMobs) return;
                 
                 this.mobs.forEach(mob => {
+                    if (mob.serverControlled) {
+                        if (!proj.hitMobs) {
+                            const dx = proj.x - mob.x;
+                            const dy = proj.y - mob.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            if (dist < mob.size + 5) {
+                                proj.hitMobs = true;
+                                if (window.showToast) {
+                                    window.showToast(`${mob.icon} touché !`, 'info');
+                                }
+                                if (window.app && typeof window.app.sendEliteHit === 'function') {
+                                    const damage = proj.damage + stats.attack;
+                                    window.app.sendEliteHit(mob.serverId || mob.uniqueId, damage);
+                                }
+                            }
+                        }
+                        return;
+                    }
                     const dx = proj.x - mob.x;
                     const dy = proj.y - mob.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1055,14 +1123,85 @@
         drawMob(context, mob) {
             const now = Date.now();
             
-            // Body
-            context.beginPath();
-            const gradient = context.createRadialGradient(mob.x - 2, mob.y - 2, 1, mob.x, mob.y, mob.size);
-            gradient.addColorStop(0, '#ffffff');
-            gradient.addColorStop(1, mob.color);
-            context.fillStyle = gradient;
-            context.arc(mob.x, mob.y, mob.size, 0, Math.PI * 2);
-            context.fill();
+            const isShark = mob.id === 'shark_mini' || mob.mobType === 'shark_mini';
+
+            if (isShark) {
+                const angle = typeof mob.angle === 'number' ? mob.angle : 0;
+                context.save();
+                context.translate(mob.x, mob.y);
+                context.rotate(angle);
+
+                const bodyGradient = context.createRadialGradient(-mob.size * 0.4, -mob.size * 0.2, 2, 0, 0, mob.size * 1.6);
+                bodyGradient.addColorStop(0, '#f7fbff');
+                bodyGradient.addColorStop(0.45, '#b0cdfa');
+                bodyGradient.addColorStop(1, '#5c87c7');
+                context.fillStyle = bodyGradient;
+                context.beginPath();
+                context.ellipse(0, 0, mob.size * 1.4, mob.size * 0.75, 0, 0, Math.PI * 2);
+                context.fill();
+
+                // Belly highlight
+                context.beginPath();
+                context.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                context.ellipse(-mob.size * 0.1, mob.size * 0.2, mob.size * 0.7, mob.size * 0.3, 0, 0, Math.PI * 2);
+                context.fill();
+
+                // Dorsal fin
+                context.beginPath();
+                context.fillStyle = 'rgba(90, 120, 170, 0.9)';
+                context.moveTo(-mob.size * 0.15, -mob.size * 0.95);
+                context.lineTo(mob.size * 0.4, -mob.size * 0.1);
+                context.lineTo(-mob.size * 0.6, -mob.size * 0.2);
+                context.closePath();
+                context.fill();
+
+                // Tail fin
+                context.beginPath();
+                context.fillStyle = 'rgba(35, 60, 110, 0.7)';
+                context.moveTo(mob.size * 1.2, 0);
+                context.lineTo(mob.size * 1.9, -mob.size * 0.7);
+                context.lineTo(mob.size * 1.5, 0);
+                context.lineTo(mob.size * 1.9, mob.size * 0.7);
+                context.closePath();
+                context.fill();
+
+                // Gills
+                context.strokeStyle = 'rgba(25, 45, 80, 0.4)';
+                context.lineWidth = 1;
+                for (let i = 0; i < 3; i += 1) {
+                    context.beginPath();
+                    context.moveTo(-mob.size * 0.4, -mob.size * 0.25 + i * mob.size * 0.2);
+                    context.lineTo(-mob.size * 0.15, -mob.size * 0.1 + i * mob.size * 0.2);
+                    context.stroke();
+                }
+
+                // Eye
+                context.beginPath();
+                context.fillStyle = '#0b1628';
+                context.arc(-mob.size * 0.7, -mob.size * 0.1, mob.size * 0.12, 0, Math.PI * 2);
+                context.fill();
+                context.beginPath();
+                context.fillStyle = '#ffffff';
+                context.arc(-mob.size * 0.75, -mob.size * 0.18, mob.size * 0.04, 0, Math.PI * 2);
+                context.fill();
+
+                // Nose highlight
+                context.beginPath();
+                context.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                context.ellipse(-mob.size * 1.2, 0, mob.size * 0.15, mob.size * 0.08, 0, 0, Math.PI * 2);
+                context.fill();
+
+                context.restore();
+            } else {
+                // Body
+                context.beginPath();
+                const gradient = context.createRadialGradient(mob.x - 2, mob.y - 2, 1, mob.x, mob.y, mob.size);
+                gradient.addColorStop(0, '#ffffff');
+                gradient.addColorStop(1, mob.color);
+                context.fillStyle = gradient;
+                context.arc(mob.x, mob.y, mob.size, 0, Math.PI * 2);
+                context.fill();
+            }
             
             // Health bar
             const hpPercent = mob.hp / mob.maxHp;

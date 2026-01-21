@@ -23,9 +23,8 @@ class Destroy
     
     public function serialize()
     {
-        return array(TYPES_MESSAGES_BLINK, 
+        return array(TYPES_MESSAGES_DESTROY, 
                 $this->item->id,
         );
     }
 }
-

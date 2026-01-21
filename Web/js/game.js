@@ -1745,9 +1745,12 @@
         const pvpToggle = document.getElementById('pvp-toggle');
         if (pvpToggle) {
             pvpToggle.addEventListener('click', () => {
-                if (window.GameSystems) {
+                if (window.GameSystems && window.GameSystems.combat) {
                     window.GameSystems.combat.togglePvP();
                     pvpToggle.classList.toggle('active', window.GameSystems.combat.pvpEnabled);
+                    if (state.app && typeof state.app.setPvpEnabled === 'function') {
+                        state.app.setPvpEnabled(window.GameSystems.combat.pvpEnabled);
+                    }
                 }
             });
         }
