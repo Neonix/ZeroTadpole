@@ -39,7 +39,8 @@ Un jeu multijoueur en temps réel où vous incarnez un têtard dans un monde aqu
 1. **Démarrer le serveur WebSocket** :
 ```bash
 cd ZeroTadpole
-php start.php start
+composer update
+sudo php start.php start
 ```
 
 2. **Accéder au jeu** :
