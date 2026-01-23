@@ -18,6 +18,15 @@ var Tadpole = function() {
 	this.targetX = 0;
 	this.targetY = 0;
 	this.targetMomentum = 0;
+	// Whether we have received at least one authoritative target position from the server.
+	// This avoids treating (0,0) as "no target" which can break interpolation.
+	this._hasTarget = false;
+	
+	// Pour l'interpolation avec gestion de latence
+	this.prevX = 0;
+	this.prevY = 0;
+	this.lastUpdateTime = 0;
+	this.interpolationSpeed = 0.15; // Vitesse d'interpolation de base
 	
 	this.messages = [];
 	this.timeSinceLastActivity = 0;
@@ -25,29 +34,55 @@ var Tadpole = function() {
 	this.changed = 0;
 	this.timeSinceLastServerUpdate = 0;
 	
+	// Constantes pour la gestion de latence
+	var SNAP_THRESHOLD = 200; // Distance pour téléportation directe
+	// Slightly faster interpolation to reduce perceived latency for remote players.
+	var INTERPOLATION_BASE = 0.16;
+	var INTERPOLATION_FAST = 0.32;
+	// Use time-based thresholds (game runs at 30fps by default, so frame-based
+	// thresholds would otherwise double perceived delays).
+	var MAX_MS_WITHOUT_UPDATE = 3000;
+	
 	this.update = function(mouse, model) {
+		var nowMs = Date.now();
+		var isLocal = !!(model && model.userTadpole && model.userTadpole.id === tadpole.id);
+		var msSinceUpdate = tadpole.lastUpdateTime ? (nowMs - tadpole.lastUpdateTime) : 999999;
 		tadpole.timeSinceLastServerUpdate++;
 		
+		// Mouvement propre (basé sur l'angle et le momentum)
 		tadpole.x += Math.cos(tadpole.angle) * tadpole.momentum;
 		tadpole.y += Math.sin(tadpole.angle) * tadpole.momentum;
 
-		//Collision
-		/*for(id in model.tadpoles) {
-			console.log(Math.round(tadpole.x), model.tadpoles[id].x);
-
-
-			if (	tadpole.id != model.tadpoles[id].id  &&
-					Math.round(tadpole.x) == Math.round(model.tadpoles[id].x) )
-				console.log('COLISION');
-
-
-			//model.tadpoles[id].draw(context);
-		}*/
-
-
-		if(tadpole.targetX != 0 || tadpole.targetY != 0) {
-			tadpole.x += (tadpole.targetX - tadpole.x) / 20;
-			tadpole.y += (tadpole.targetY - tadpole.y) / 20;
+		// Interpolation vers la position cible (autres joueurs uniquement)
+		// Note: we rely on _hasTarget so (0,0) remains a valid target.
+		if(!isLocal && tadpole._hasTarget) {
+			var dx = tadpole.targetX - tadpole.x;
+			var dy = tadpole.targetY - tadpole.y;
+			var distance = Math.sqrt(dx * dx + dy * dy);
+			
+			// Si trop loin, téléporter directement (gestion de la latence)
+			if (distance > SNAP_THRESHOLD) {
+				tadpole.x = tadpole.targetX;
+				tadpole.y = tadpole.targetY;
+			} else if (distance > 1) {
+				// Interpolation adaptative selon la distance
+				var speed = distance > 50 ? INTERPOLATION_FAST : INTERPOLATION_BASE;
+				
+				// Accélérer si pas de mise à jour depuis longtemps (time-based)
+				if (msSinceUpdate > 1000) {
+					speed = Math.min(speed * 1.5, 0.45);
+				}
+				
+				tadpole.x += dx * speed;
+				tadpole.y += dy * speed;
+			}
+		}
+		
+		// Si pas de mise à jour depuis trop longtemps, on continue avec le momentum
+		if (!isLocal && msSinceUpdate > MAX_MS_WITHOUT_UPDATE) {
+			// Dead reckoning: continuer dans la direction actuelle
+			tadpole.x += Math.cos(tadpole.angle) * tadpole.momentum * 0.5;
+			tadpole.y += Math.sin(tadpole.angle) * tadpole.momentum * 0.5;
 		}
 		
 		// Update messages
@@ -100,6 +135,10 @@ var Tadpole = function() {
 	
 	this.userUpdate = function(tadpoles, angleTargetX, angleTargetY) {
 		this.age++;
+		// Le joueur local se met à jour à chaque frame via l'input :
+		// on évite d'utiliser timeSinceLastServerUpdate (pensé pour les entités distantes)
+		// afin de supprimer les effets de "latence" visuelle (fade / inertie) quand on est immobile.
+		tadpole.timeSinceLastServerUpdate = 0;
 
 		var prevState = {
 			angle: tadpole.angle,

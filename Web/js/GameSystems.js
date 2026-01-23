@@ -142,6 +142,82 @@
     // ============================================
     
     const MOBS = {
+        // === TIER 0: TUTORIEL ===
+        'training_bubble': {
+            id: 'training_bubble',
+            name: 'Bulle d\'Entraînement',
+            icon: '🫧',
+            type: 'training',
+            tier: 0,
+            hp: 10,
+            maxHp: 10,
+            damage: 0,
+            speed: 0.3,
+            size: 5,
+            color: '#87CEEB',
+            xpReward: 2,
+            dropTable: [],
+            dropChance: 0,
+            spawnWeight: 0,
+            passive: true,
+            description: 'Une bulle inoffensive pour s\'entraîner.'
+        },
+        'friendly_fish': {
+            id: 'friendly_fish',
+            name: 'Poisson Ami',
+            icon: '🐠',
+            type: 'training',
+            tier: 0,
+            hp: 15,
+            maxHp: 15,
+            damage: 0,
+            speed: 0.5,
+            size: 6,
+            color: '#FFD700',
+            xpReward: 3,
+            dropTable: ['potion_health'],
+            dropChance: 0.8,
+            spawnWeight: 0,
+            passive: true,
+            description: 'Un gentil poisson qui laisse tomber des potions.'
+        },
+        'bubble_fish': {
+            id: 'bubble_fish',
+            name: 'Poisson Bulle',
+            icon: '🐟',
+            type: 'mob',
+            tier: 0,
+            hp: 15,
+            maxHp: 15,
+            damage: 2,
+            speed: 0.8,
+            size: 6,
+            color: '#ADD8E6',
+            xpReward: 5,
+            dropTable: ['potion_health'],
+            dropChance: 0.5,
+            spawnWeight: 0,
+            description: 'Un petit poisson bulle légèrement agressif.'
+        },
+        'baby_crab': {
+            id: 'baby_crab',
+            name: 'Bébé Crabe',
+            icon: '🦀',
+            type: 'mob',
+            tier: 0,
+            hp: 20,
+            maxHp: 20,
+            damage: 3,
+            speed: 0.6,
+            size: 5,
+            color: '#FF6B6B',
+            xpReward: 6,
+            dropTable: ['potion_health'],
+            dropChance: 0.6,
+            spawnWeight: 0,
+            description: 'Un petit crabe curieux et pinçant.'
+        },
+        
         // === TIER 1: CRÉATURES DE BASE ===
         'crab_small': {
             id: 'crab_small',
@@ -1168,6 +1244,11 @@
         }
         
         spawnMobs(model) {
+            // Si le serveur contrôle les mobs, ne pas spawner localement
+            if (this.mobs.some(m => m.serverControlled)) {
+                return; // Le serveur gère tout
+            }
+            
             const now = Date.now();
             if (now - this.lastMobSpawn < this.mobSpawnInterval) return;
             if (this.mobs.length >= this.maxMobs) return;
@@ -1665,6 +1746,58 @@
                 remote: true
             };
             this.projectiles.push(projectile);
+        }
+
+        // Alias for WebSocketService handler
+        handleRemoteSpell(spellData) {
+            if (!spellData) return;
+            // Calculate angle from caster to target
+            const dx = spellData.targetX - spellData.x;
+            const dy = spellData.targetY - spellData.y;
+            const angle = Math.atan2(dy, dx);
+            
+            this.castSpellFromRemote({
+                spellId: spellData.spellId,
+                x: spellData.x,
+                y: spellData.y,
+                angle: angle
+            });
+        }
+
+        // Try to pick up nearby loot (called from client controls)
+        tryPickupLoot(model) {
+            if (!model || !model.userTadpole) return;
+            const playerX = model.userTadpole.x;
+            const playerY = model.userTadpole.y;
+            const pickupRange = 40;
+            
+            for (const loot of this.lootDrops) {
+                const dx = loot.x - playerX;
+                const dy = loot.y - playerY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < pickupRange) {
+                    // Send pickup request to server
+                    if (loot.serverId && window.webSocketService) {
+                        window.webSocketService.sendLootPickup(loot.serverId);
+                    } else if (loot.id) {
+                        // Local loot (fallback)
+                        this.pickupLocalLoot(loot);
+                    }
+                    break; // Only pick up one at a time
+                }
+            }
+        }
+
+        pickupLocalLoot(loot) {
+            if (!loot) return;
+            const idx = this.lootDrops.findIndex(l => l.id === loot.id || l.serverId === loot.serverId);
+            if (idx !== -1) {
+                this.lootDrops.splice(idx, 1);
+                if (window.GameSystems && window.GameSystems.inventory) {
+                    window.GameSystems.inventory.addItem(loot.itemId);
+                }
+            }
         }
         
         draw(context, camera) {
@@ -2831,5 +2964,7 @@
 
     // Export globally
     window.GameSystems = GameSystems;
+    window.GameSystems.MOBS = MOBS;
+    window.GameSystems.ITEMS = ITEMS;
 
 })();

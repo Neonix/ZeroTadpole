@@ -109,30 +109,44 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		}
 
 		if(tadpole.id == model.userTadpole.id) {
-			tadpole.name = data.name;
+			// IMPORTANT: ne pas "corriger" le joueur local à chaque écho serveur.
+			// Le client simule son propre mouvement instantanément.
+			// Si on applique l'écho serveur en continu, on introduit une latence visible (rubber-banding).
+			if (data.name) {
+				tadpole.name = data.name;
+			}
 			if (data.color) {
 				tadpole.color = data.color;
 			}
+
+			// On accepte la position serveur uniquement:
+			// - la toute première fois (spawn/respawn)
+			// - si la différence est énorme (téléport/correction)
+			// - ou si le joueur est mort (serveur autoritaire sur l'état)
 			var selfX = parseNumber(data.x);
 			var selfY = parseNumber(data.y);
 			if (selfX !== null && selfY !== null) {
-				tadpole.x = selfX;
-				tadpole.y = selfY;
-				tadpole.targetX = selfX;
-				tadpole.targetY = selfY;
-				if (window.GameSystems && window.GameSystems.combat && !window.GameSystems.combat.safeZoneCenter) {
-					window.GameSystems.combat.safeZoneCenter = { x: selfX, y: selfY };
+				var dx = selfX - tadpole.x;
+				var dy = selfY - tadpole.y;
+				var dist2 = dx*dx + dy*dy;
+				var needsHardCorrection = dist2 > (250*250);
+				var firstServerPos = !tadpole._hasServerPos;
+				var dead = (window.inputState && window.inputState.isDead) || tadpole.isDead;
+
+				if (firstServerPos || needsHardCorrection || dead) {
+					tadpole.x = selfX;
+					tadpole.y = selfY;
+					tadpole.targetX = selfX;
+					tadpole.targetY = selfY;
+					tadpole._hasServerPos = true;
+					if (window.GameSystems && window.GameSystems.combat) {
+						window.GameSystems.combat.safeZoneCenter = { x: selfX, y: selfY };
+					}
 				}
 			}
-			var selfAngle = parseNumber(data.angle);
-			if (selfAngle !== null) {
-				tadpole.angle = selfAngle;
-			}
-			var selfMomentum = parseNumber(data.momentum);
-			if (selfMomentum !== null) {
-				tadpole.momentum = selfMomentum;
-			}
-			tadpole.timeSinceLastServerUpdate = 0;
+
+			// Ne pas écraser angle/momentum du joueur local en continu.
+			// (Le client les calcule selon l'input; le serveur peut envoyer des messages dédiés si besoin.)
 			return;
 		} else {
 			tadpole.name = data.name;
@@ -150,6 +164,9 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 			}
 			tadpole.targetX = nextX;
 			tadpole.targetY = nextY;
+			// Mark that this entity has an authoritative target (even if it's (0,0))
+			tadpole._hasTarget = true;
+			tadpole.lastUpdateTime = Date.now();
 		}
 
 		var nextAngle = parseNumber(data.angle);
@@ -199,6 +216,8 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 			}
 			tadpole.targetX = spawnX;
 			tadpole.targetY = spawnY;
+			tadpole._hasTarget = true;
+			tadpole.lastUpdateTime = Date.now();
 		}
 
 		var spawnAngle = parseNumber(data.angle);
@@ -235,6 +254,8 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 			tadpole.y = nextY;
 			tadpole.targetX = nextX;
 			tadpole.targetY = nextY;
+			tadpole._hasTarget = true;
+			tadpole.lastUpdateTime = Date.now();
 		}
 		tadpole.timeSinceLastServerUpdate = 0;
 		if (tadpole.id == model.userTadpole.id && window.GameSystems && window.GameSystems.combat) {
@@ -324,6 +345,270 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 
 	this.listsHandler = function(data) {
 		this.listHandler(data);
+	};
+
+	// ============================================
+	// NOUVEAUX HANDLERS - SYNCHRONISATION v2
+	// ============================================
+	
+	this.sync_infoHandler = function(data) {
+		console.log('[SYNC] Protocol v' + data.protocolVersion + ', Server tick: ' + data.serverTick);
+		// Stocker la config de zone
+		if (data.zones && window.GameSystems && window.GameSystems.combat) {
+			window.GameSystems.combat.safeZoneRadius = data.zones.tutorialRadius || 200;
+			window.GameSystems.combat.transitionRadius = data.zones.transitionRadius || 400;
+			window.GameSystems.combat.normalRadius = data.zones.normalRadius || 800;
+		}
+	};
+	
+	this.world_snapshotHandler = function(data) {
+		if (!window.GameSystems || !window.GameSystems.combat) return;
+		var combat = window.GameSystems.combat;
+		
+		// Synchroniser les positions des joueurs
+		if (data.players && Array.isArray(data.players) && model) {
+			data.players.forEach(function(playerData) {
+				// Ne pas mettre à jour notre propre position
+				if (playerData.i === model.userTadpole.id) return;
+				
+				var tadpole = model.tadpoles[playerData.i];
+				if (tadpole) {
+					// Mettre à jour la position cible pour interpolation
+					tadpole.targetX = playerData.x;
+					tadpole.targetY = playerData.y;
+					tadpole._hasTarget = true;
+					tadpole.lastUpdateTime = Date.now();
+					tadpole.angle = playerData.a;
+					tadpole.momentum = playerData.m;
+					tadpole.timeSinceLastServerUpdate = 0;
+					
+					// Si trop éloigné, téléporter directement
+					var dx = tadpole.x - playerData.x;
+					var dy = tadpole.y - playerData.y;
+					var dist = Math.sqrt(dx * dx + dy * dy);
+					if (dist > 200) {
+						tadpole.x = playerData.x;
+						tadpole.y = playerData.y;
+					}
+				}
+			});
+		}
+		
+		// Synchroniser les mobs du serveur
+		if (data.mobs && Array.isArray(data.mobs)) {
+			var serverMobIds = {};
+			
+			data.mobs.forEach(function(mobData) {
+				serverMobIds[mobData.i] = true;
+				
+				// Chercher le mob existant
+				var existingMob = combat.mobs.find(function(m) { 
+					return m.serverId === mobData.i; 
+				});
+				
+				if (existingMob) {
+					// Mettre à jour le mob existant
+					existingMob.prevX = existingMob.targetX !== undefined ? existingMob.targetX : existingMob.x;
+					existingMob.prevY = existingMob.targetY !== undefined ? existingMob.targetY : existingMob.y;
+					existingMob.targetX = mobData.x;
+					existingMob.targetY = mobData.y;
+					existingMob.hp = mobData.h;
+					if (mobData.s) {
+						existingMob.state = mobData.s === 'c' ? 'chase' : (mobData.s === 'r' ? 'return' : (mobData.s === 'f' ? 'flee' : 'idle'));
+					}
+					var now = performance.now();
+					existingMob.prevServerUpdateAt = existingMob.lastServerUpdateAt || now;
+					existingMob.lastServerUpdateAt = now;
+				} else {
+					// Créer un nouveau mob serveur
+					var mobType = mobData.t || 'crab_small';
+					var template = window.GameSystems.MOBS ? window.GameSystems.MOBS[mobType] : null;
+					
+					var newMob = {
+						serverId: mobData.i,
+						serverControlled: true,
+						mobType: mobType,
+						x: mobData.x,
+						y: mobData.y,
+						targetX: mobData.x,
+						targetY: mobData.y,
+						prevX: mobData.x,
+						prevY: mobData.y,
+						hp: mobData.h,
+						maxHp: template ? template.hp : mobData.h,
+						angle: 0,
+						targetAngle: 0,
+						state: 'idle',
+						uniqueId: 'server_' + mobData.i,
+						lastServerUpdateAt: performance.now(),
+						prevServerUpdateAt: performance.now(),
+						serverUpdateInterval: 100,
+						// Copier les propriétés du template
+						name: template ? template.name : 'Créature',
+						icon: template ? template.icon : '🐟',
+						color: template ? template.color : '#ff6666',
+						size: template ? template.size : 8,
+						type: template ? template.type : 'mob',
+						damage: template ? template.damage : 5,
+						xpReward: template ? template.xpReward : 5
+					};
+					
+					combat.mobs.push(newMob);
+				}
+			});
+			
+			// Supprimer les mobs qui ne sont plus sur le serveur
+			combat.mobs = combat.mobs.filter(function(m) {
+				if (!m.serverControlled) return true;
+				return serverMobIds[m.serverId] === true;
+			});
+		}
+		
+		// Synchroniser le loot
+		if (data.loot && Array.isArray(data.loot)) {
+			data.loot.forEach(function(lootData) {
+				var existing = combat.lootDrops.find(function(l) { return l.serverId === lootData.i; });
+				if (!existing) {
+					combat.lootDrops.push({
+						serverId: lootData.i,
+						itemId: lootData.t,
+						x: lootData.x,
+						y: lootData.y,
+						time: Date.now()
+					});
+				}
+			});
+		}
+	};
+	
+	this.zone_infoHandler = function(data) {
+		// Afficher notification de changement de zone
+		if (data.name) {
+			window.showToast && window.showToast(data.name, data.safe ? 'success' : 'info');
+		}
+		if (data.description) {
+			window.showToast && window.showToast(data.description, 'info');
+		}
+		// Le SyncManager gère les zones
+		if (window.SyncManager) {
+			window.SyncManager.handleMessage([data]);
+		}
+	};
+	
+	this.tutorial_messageHandler = function(data) {
+		// Afficher les messages de tutoriel
+		if (data.title) {
+			window.showToast && window.showToast('📚 ' + data.title, 'info');
+		}
+		if (data.content) {
+			setTimeout(function() {
+				window.showToast && window.showToast(data.content, 'info');
+			}, 500);
+		}
+		if (data.tips && data.tips.length > 0) {
+			data.tips.forEach(function(tip, index) {
+				setTimeout(function() {
+					window.showToast && window.showToast('💡 ' + tip, 'info');
+				}, 1000 + index * 700);
+			});
+		}
+	};
+	
+	this.npc_spawnHandler = function(data) {
+		var npc = data.npc;
+		if (!npc || !npc.id) return;
+		
+		// Créer le NPC comme un tadpole spécial
+		var npcTadpole = model.tadpoles[npc.id];
+		if (!npcTadpole) {
+			npcTadpole = new Tadpole();
+			npcTadpole.id = npc.id;
+			model.tadpoles[npc.id] = npcTadpole;
+			model.arrows[npc.id] = new Arrow(npcTadpole, model.camera);
+		}
+		
+		npcTadpole.name = npc.name || 'PNJ';
+		npcTadpole.color = npc.color || '#ffd700';
+		npcTadpole.size = npc.size || 12;
+		npcTadpole.isNpc = true;
+		npcTadpole.npcType = npc.npcType;
+		npcTadpole.dialogue = npc.dialogue;
+		npcTadpole.x = npc.x;
+		npcTadpole.y = npc.y;
+		npcTadpole.targetX = npc.x;
+		npcTadpole.targetY = npc.y;
+	};
+	
+	this.xp_gainHandler = function(data) {
+		if (window.GameSystems && window.GameSystems.playerStats) {
+			var ps = window.GameSystems.playerStats;
+			ps.xp = (ps.xp || 0) + data.amount;
+			// Calcul level up simple
+			while (ps.xp >= ps.xpToNextLevel) {
+				ps.xp -= ps.xpToNextLevel;
+				ps.level = (ps.level || 1) + 1;
+				ps.xpToNextLevel = Math.floor(ps.xpToNextLevel * 1.5);
+				window.showToast && window.showToast('🎉 Niveau ' + ps.level + ' !', 'success');
+			}
+			ps.save && ps.save();
+		}
+		window.showToast && window.showToast('+' + data.amount + ' XP', 'success');
+	};
+	
+	this.quest_updateHandler = function(data) {
+		// Gestion des quêtes côté client
+		if (!data.action) return;
+		
+		switch(data.action) {
+			case 'started':
+				window.showToast && window.showToast('📜 Nouvelle quête: ' + (data.quest ? data.quest.name : 'Quête'), 'info');
+				break;
+			case 'progress':
+				if (data.quest && data.quest.objectives) {
+					data.quest.objectives.forEach(function(obj) {
+						if (obj.current < obj.required) {
+							window.showToast && window.showToast('📋 ' + obj.description + ' (' + obj.current + '/' + obj.required + ')', 'info');
+						}
+					});
+				}
+				break;
+			case 'complete':
+				window.showToast && window.showToast('🎉 Quête terminée: ' + (data.quest ? data.quest.name : 'Quête') + ' !', 'success');
+				if (data.rewards) {
+					if (data.rewards.xp) {
+						window.showToast && window.showToast('+' + data.rewards.xp + ' XP', 'success');
+					}
+					if (data.rewards.gems) {
+						window.showToast && window.showToast('+' + data.rewards.gems + ' 💎', 'success');
+					}
+					if (data.rewards.title) {
+						window.showToast && window.showToast('🏆 Titre: ' + data.rewards.title, 'success');
+					}
+				}
+				break;
+			case 'available':
+				// Nouvelle quête disponible
+				window.showToast && window.showToast('📜 Nouvelle quête disponible !', 'info');
+				break;
+			case 'full_state':
+				// État complet des quêtes - pour debug
+				console.log('[QUEST] Full state:', data);
+				break;
+		}
+		
+		// Stocker l'état des quêtes
+		if (window.GameSystems) {
+			window.GameSystems.questState = window.GameSystems.questState || {};
+			if (data.quest) {
+				window.GameSystems.questState[data.quest.id] = data.quest;
+			}
+			if (data.activeQuests) {
+				window.GameSystems.questState.active = data.activeQuests;
+			}
+			if (data.completedQuests) {
+				window.GameSystems.questState.completed = data.completedQuests;
+			}
+		}
 	};
 
 	this.messageHandler = function(data) {
@@ -540,6 +825,188 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		}
 	}
 
+	// ============================================
+	// NOUVEAUX HANDLERS - SYSTÈME UNIFIÉ DE MOBS
+	// ============================================
+
+	// Handler pour le nouveau système de mobs unifié
+	this.mobHandler = function(data) {
+		// Déléguer au SyncManager si disponible
+		if (window.SyncManager) {
+			window.SyncManager.handleMessage(data);
+		}
+		// Compatibilité avec GameSystems
+		if (!window.GameSystems || !window.GameSystems.combat) return;
+		var combat = window.GameSystems.combat;
+		
+		if (data.action === 'spawn') {
+			// Vérifier si le mob existe déjà
+			var existing = combat.mobs.find(function(m) { return m.serverId === data.id; });
+			if (existing) return;
+			
+			var mob = {
+				serverId: data.id,
+				uniqueId: data.id,
+				serverControlled: true,
+				mobType: data.mobType,
+				name: data.name,
+				icon: data.icon,
+				x: data.x,
+				y: data.y,
+				prevX: data.x,
+				prevY: data.y,
+				targetX: data.x,
+				targetY: data.y,
+				vx: data.vx || 0,
+				vy: data.vy || 0,
+				angle: data.angle,
+				prevAngle: data.angle,
+				targetAngle: data.angle,
+				hp: data.hp,
+				maxHp: data.maxHp,
+				damage: data.damage,
+				speed: data.speed,
+				size: data.size,
+				color: data.color,
+				type: data.mobClass || 'mob',
+				tier: data.tier || 1,
+				zone: data.zone,
+				passive: data.passive || false,
+				xpReward: data.xpReward || 10,
+				dropTable: data.dropTable || [],
+				dropChance: data.dropChance || 0.3,
+				lastServerUpdateAt: performance.now(),
+				prevServerUpdateAt: performance.now(),
+				serverUpdateInterval: 100
+			};
+			combat.mobs.push(mob);
+			
+			// Notification pour boss/elite
+			if (mob.type === 'boss') {
+				window.showToast && window.showToast('⚠️ ' + mob.icon + ' BOSS: ' + mob.name + ' apparaît !', 'warning');
+			} else if (mob.type === 'elite') {
+				window.showToast && window.showToast('⚔️ ' + mob.icon + ' Élite: ' + mob.name + ' repéré !', 'info');
+			}
+		}
+		else if (data.action === 'death') {
+			var idx = combat.mobs.findIndex(function(m) { return m.serverId === data.id; });
+			if (idx !== -1) {
+				combat.handleEliteMobDefeat(combat.mobs[idx]);
+				combat.mobs.splice(idx, 1);
+			}
+		}
+		else if (data.action === 'update' && data.data) {
+			webSocketService.handleMobUpdateData(data.data);
+		}
+	}
+
+	// Handler pour les mises à jour batch de mobs
+	this.mobs_batchHandler = function(data) {
+		if (!data.mobs) return;
+		data.mobs.forEach(function(mobData) {
+			webSocketService.handleMobUpdateData(mobData);
+		});
+	}
+
+	// Fonction utilitaire pour mettre à jour les données d'un mob
+	this.handleMobUpdateData = function(d) {
+		if (!window.GameSystems || !window.GameSystems.combat) return;
+		var combat = window.GameSystems.combat;
+		var mob = combat.mobs.find(function(m) { return m.serverId === d.i; });
+		if (!mob) return;
+		
+		mob.prevX = typeof mob.targetX === 'number' ? mob.targetX : mob.x;
+		mob.prevY = typeof mob.targetY === 'number' ? mob.targetY : mob.y;
+		mob.targetX = d.x;
+		mob.targetY = d.y;
+		mob.vx = d.vx || 0;
+		mob.vy = d.vy || 0;
+		mob.prevAngle = typeof mob.targetAngle === 'number' ? mob.targetAngle : mob.angle;
+		mob.targetAngle = d.a;
+		mob.hp = d.h;
+		mob.state = d.s === 'c' ? 'chase' : (d.s === 'r' ? 'return' : 'idle');
+		
+		var now = performance.now();
+		mob.prevServerUpdateAt = mob.lastServerUpdateAt || now;
+		mob.lastServerUpdateAt = now;
+		var delta = now - mob.prevServerUpdateAt;
+		if (delta > 0) {
+			mob.serverUpdateInterval = mob.serverUpdateInterval * 0.8 + delta * 0.2;
+		}
+	}
+
+	// Handler pour info de zone
+	this.zone_infoHandler = function(data) {
+		// Stocker la config de zone
+		if (window.GameSystems) {
+			window.GameSystems.zoneConfig = {
+				currentZone: data.zone,
+				zoneName: data.name,
+				isSafe: data.safe,
+				tutorialRadius: data.tutorialRadius,
+				transitionRadius: data.transitionRadius,
+				normalRadius: data.normalRadius
+			};
+		}
+		// Notification
+		if (data.zone && window.showToast) {
+			var messages = {
+				'tutorial': '🛡️ Zone Tutoriel - Vous êtes en sécurité!',
+				'transition': '⚠️ Zone de Transition - Créatures faibles',
+				'normal': '🌊 Eaux Normales - Restez vigilant!',
+				'danger': '☠️ Eaux Profondes - DANGER EXTRÊME!'
+			};
+			window.showToast(messages[data.zone] || 'Zone: ' + data.name);
+		}
+	}
+
+	// Handler pour attaque de mob
+	this.mob_attackHandler = function(data) {
+		if (!window.GameSystems || !window.GameSystems.combat) return;
+		// Effet visuel d'attaque
+		if (data.targetId && model.userTadpole && String(data.targetId) === String(model.userTadpole.id)) {
+			window.GameSystems.combat.showDamageEffect(data.damage);
+		}
+	}
+
+	// Handler pour dégâts sur mob
+	this.mob_hitHandler = function(data) {
+		if (!window.GameSystems || !window.GameSystems.combat) return;
+		var combat = window.GameSystems.combat;
+		var mob = combat.mobs.find(function(m) { return m.serverId === data.mobId; });
+		if (mob) {
+			mob.hp = data.hp;
+			mob.maxHp = data.maxHp;
+			// Effet visuel de dégât
+			combat.showMobDamageNumber(mob, data.damage);
+		}
+	}
+
+	// Handler pour loot drop
+	this.loot_dropHandler = function(data) {
+		if (!window.GameSystems || !window.GameSystems.combat) return;
+		var combat = window.GameSystems.combat;
+		if (data.items && data.items.length > 0) {
+			data.items.forEach(function(itemId, idx) {
+				combat.lootDrops.push({
+					serverId: 'loot-' + Date.now() + '-' + idx,
+					itemId: itemId,
+					x: data.x + (idx - data.items.length/2) * 15,
+					y: data.y,
+					spawnTime: Date.now(),
+					killerId: data.killerId
+				});
+			});
+		}
+	}
+
+	// Handler pour gain d'XP
+	this.xp_gainHandler = function(data) {
+		if (!window.GameSystems || !window.GameSystems.playerStats) return;
+		window.GameSystems.playerStats.addXP(data.amount);
+		window.showToast && window.showToast('+' + data.amount + ' XP', 'success');
+	}
+
 	this.spellHandler = function(data) {
 		if (!data || !window.GameSystems || !window.GameSystems.combat) {
 			return;
@@ -703,7 +1170,187 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 		if (fn) {
 			fn(data);
 		}
+		
+		// Forward to AdvancedSystems for new system types
+		if (window.AdvancedSystems && data && data.type) {
+			var advancedTypes = [
+				'talents_sync', 'talent_result',
+				'achievements_sync', 'achievement_unlocked',
+				'crafting_sync', 'craft_started', 'craft_completed', 'craft_cancelled',
+				'pets_sync', 'pet_obtained', 'pet_level_up', 'pet_spawn', 'pet_despawn', 'pet_ability',
+				'leaderboard_full', 'leaderboard_sync', 'leaderboard_top',
+				'events_sync', 'event_started', 'event_ended',
+				'world_boss_spawn', 'world_boss_update', 'world_boss_killed', 'world_boss_ability', 'world_boss_reward',
+				'daily_reward_claimed',
+				'trade_request', 'trade_started', 'trade_item_added', 'trade_item_removed',
+				'trade_gems_changed', 'trade_confirmed', 'trade_closed',
+				'buff_applied', 'buff_removed'
+			];
+			if (advancedTypes.indexOf(data.type) !== -1) {
+				window.AdvancedSystems.handleMessage(data);
+			}
+		}
 	}
+
+	// === HANDLERS GROUPE ===
+	this.group_resultHandler = function(data) {
+		if (!data.result) return;
+		var result = data.result;
+		if (result.success) {
+			window.showToast && window.showToast('✅ ' + (data.action || 'Action') + ' réussie', 'success');
+		} else {
+			window.showToast && window.showToast('❌ ' + (result.error || 'Erreur'), 'error');
+		}
+	};
+	
+	this.group_createdHandler = function(data) {
+		window.showToast && window.showToast('🎉 Groupe créé !', 'success');
+		if (window.GameSystems) {
+			window.GameSystems.currentGroup = data.data.group;
+		}
+	};
+	
+	this.group_inviteHandler = function(data) {
+		var inviterName = data.data.inviterName || 'Joueur';
+		window.showToast && window.showToast('📨 ' + inviterName + ' vous invite à rejoindre son groupe', 'info');
+		// Stocker l'invitation pour accepter/refuser
+		if (window.GameSystems) {
+			window.GameSystems.pendingGroupInvite = data.data;
+		}
+	};
+	
+	this.group_member_joinedHandler = function(data) {
+		var playerName = data.data.playerName || 'Joueur';
+		window.showToast && window.showToast('👋 ' + playerName + ' a rejoint le groupe', 'info');
+		if (window.GameSystems) {
+			window.GameSystems.currentGroup = data.data.group;
+		}
+	};
+	
+	this.group_member_leftHandler = function(data) {
+		var playerName = data.data.playerName || 'Joueur';
+		window.showToast && window.showToast('👋 ' + playerName + ' a quitté le groupe', 'info');
+		if (window.GameSystems) {
+			window.GameSystems.currentGroup = data.data.group;
+		}
+	};
+	
+	this.group_leftHandler = function(data) {
+		window.showToast && window.showToast('Vous avez quitté le groupe', 'info');
+		if (window.GameSystems) {
+			window.GameSystems.currentGroup = null;
+		}
+	};
+	
+	this.group_kickedHandler = function(data) {
+		window.showToast && window.showToast('❌ Vous avez été exclu du groupe', 'warning');
+		if (window.GameSystems) {
+			window.GameSystems.currentGroup = null;
+		}
+	};
+	
+	this.group_leader_changedHandler = function(data) {
+		var newLeaderName = data.data.newLeaderName || 'Joueur';
+		window.showToast && window.showToast('👑 ' + newLeaderName + ' est le nouveau chef', 'info');
+		if (window.GameSystems) {
+			window.GameSystems.currentGroup = data.data.group;
+		}
+	};
+
+	// === HANDLERS INVENTAIRE ===
+	this.inventory_syncHandler = function(data) {
+		if (window.GameSystems && window.GameSystems.inventory) {
+			window.GameSystems.inventory.slots = data.slots;
+			window.GameSystems.inventory.gems = data.gems;
+			window.GameSystems.inventory.gold = data.gold;
+			window.GameSystems.inventory.maxSlots = data.maxSlots;
+			window.GameSystems.inventory.updateUI && window.GameSystems.inventory.updateUI();
+		}
+	};
+	
+	this.equipment_syncHandler = function(data) {
+		if (window.GameSystems) {
+			window.GameSystems.equippedSpells = data.spells;
+			window.GameSystems.equippedArmor = data.armor;
+			window.GameSystems.equippedAccessory = data.accessory;
+		}
+	};
+	
+	this.inventory_resultHandler = function(data) {
+		if (!data.result) return;
+		if (!data.result.success) {
+			window.showToast && window.showToast('❌ ' + (data.result.error || 'Erreur'), 'error');
+		}
+	};
+	
+	this.buff_appliedHandler = function(data) {
+		if (window.GameSystems && window.GameSystems.gameState) {
+			var buff = data.buff;
+			if (buff.stat === 'speed') {
+				window.GameSystems.gameState.speedBoostUntil = buff.expiresAt;
+				window.GameSystems.gameState.speedMultiplier = buff.value;
+			} else if (buff.stat === 'damage') {
+				window.GameSystems.gameState.damageBoostUntil = buff.expiresAt;
+				window.GameSystems.gameState.damageMultiplier = buff.value;
+			}
+		}
+		window.showToast && window.showToast('✨ Buff appliqué !', 'success');
+	};
+	
+	this.shield_appliedHandler = function(data) {
+		if (window.GameSystems && window.GameSystems.gameState) {
+			window.GameSystems.gameState.shieldUntil = data.shield.expiresAt;
+		}
+		window.showToast && window.showToast('🛡️ Bouclier activé !', 'success');
+	};
+	
+	this.spell_castHandler = function(data) {
+		if (window.GameSystems && window.GameSystems.combat) {
+			window.GameSystems.combat.handleRemoteSpell(data.spell);
+		}
+	};
+	
+	this.spell_resultHandler = function(data) {
+		if (!data.result) return;
+		if (!data.result.success) {
+			window.showToast && window.showToast('⏳ ' + (data.result.error || 'Sort en recharge'), 'warning');
+		}
+	};
+	
+	this.loot_spawnHandler = function(data) {
+		if (window.GameSystems && window.GameSystems.combat) {
+			window.GameSystems.combat.lootDrops.push({
+				serverId: data.loot.id,
+				itemId: data.loot.itemType,
+				x: data.loot.x,
+				y: data.loot.y,
+				time: Date.now()
+			});
+		}
+	};
+	
+	this.loot_pickupHandler = function(data) {
+		if (window.GameSystems && window.GameSystems.combat) {
+			window.GameSystems.combat.lootDrops = window.GameSystems.combat.lootDrops.filter(function(l) {
+				return l.serverId !== data.lootId;
+			});
+		}
+		if (data.playerId === model.userTadpole.id) {
+			window.showToast && window.showToast('📦 Objet récupéré !', 'success');
+		}
+	};
+	
+	this.loot_pickup_failedHandler = function(data) {
+		window.showToast && window.showToast('❌ ' + (data.reason || 'Impossible de ramasser'), 'warning');
+	};
+	
+	this.loot_expiredHandler = function(data) {
+		if (window.GameSystems && window.GameSystems.combat) {
+			window.GameSystems.combat.lootDrops = window.GameSystems.combat.lootDrops.filter(function(l) {
+				return l.serverId !== data.lootId;
+			});
+		}
+	};
 
 	var appendChatLine = function(name, message, color, isPrivate) {
 		if (!chatLogEl) {
@@ -752,6 +1399,10 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 	};
 
 	this.sendUpdate = function(tadpole) {
+		// Avoid throws when socket is closing / closed
+		if (!webSocket || webSocket.readyState !== WebSocket.OPEN) {
+			return;
+		}
 		var sendObj = {
 			type: 'update',
 			x: tadpole.x.toFixed(1),
@@ -843,6 +1494,56 @@ var WebSocketService = function(model, webSocket, reconnectFn) {
 
 	this.sendEliteHit = function(mobId, damage) {
 		webSocket.send(JSON.stringify({type: 'elite_hit', id: mobId, damage: damage}));
+	}
+
+	// === GROUP METHODS ===
+	this.sendGroupCreate = function(name) {
+		webSocket.send(JSON.stringify({type: 'group_create', name: name || null}));
+	}
+
+	this.sendGroupInvite = function(targetId) {
+		webSocket.send(JSON.stringify({type: 'group_invite', targetId: targetId}));
+	}
+
+	this.sendGroupAccept = function() {
+		webSocket.send(JSON.stringify({type: 'group_accept'}));
+	}
+
+	this.sendGroupDecline = function() {
+		webSocket.send(JSON.stringify({type: 'group_decline'}));
+	}
+
+	this.sendGroupLeave = function() {
+		webSocket.send(JSON.stringify({type: 'group_leave'}));
+	}
+
+	this.sendGroupKick = function(targetId) {
+		webSocket.send(JSON.stringify({type: 'group_kick', targetId: targetId}));
+	}
+
+	this.sendGroupPromote = function(targetId) {
+		webSocket.send(JSON.stringify({type: 'group_promote', targetId: targetId}));
+	}
+
+	// === INVENTORY METHODS ===
+	this.sendInventoryUse = function(slotIndex) {
+		webSocket.send(JSON.stringify({type: 'inventory_use', slot: slotIndex}));
+	}
+
+	this.sendInventoryDrop = function(slotIndex) {
+		webSocket.send(JSON.stringify({type: 'inventory_drop', slot: slotIndex}));
+	}
+
+	this.sendSpellEquip = function(spellId, slotIndex) {
+		webSocket.send(JSON.stringify({type: 'spell_equip', spellId: spellId, slot: slotIndex}));
+	}
+
+	this.sendSpellCast = function(slotIndex, x, y) {
+		webSocket.send(JSON.stringify({type: 'spell_cast', slot: slotIndex, x: x, y: y}));
+	}
+
+	this.sendLootPickup = function(lootId) {
+		webSocket.send(JSON.stringify({type: 'loot_pickup', lootId: lootId}));
 	}
 
 	var ensureGuideNpc = function() {

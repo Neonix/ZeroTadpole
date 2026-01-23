@@ -22,6 +22,11 @@ var App = function(aSettings, aCanvas) {
 			keyNav = {x:0,y:0},
 			messageQuota = 5
 	;
+
+	// Networking throttles (time-based, not frame-based) to reduce perceived latency
+	// while keeping bandwidth under control.
+	app._lastNetSendAt = 0;
+	app._lastNetKeepAliveAt = 0;
 	var scoreEl = document.getElementById('score-value');
 	var questEl = document.getElementById('quest-progress');
 	var boostEl = document.getElementById('boost-status');
@@ -55,16 +60,40 @@ var App = function(aSettings, aCanvas) {
 			model.userTadpole.targetMomentum = 0;
 		}
 		
-		if(!window.inputState.isDead && model.userTadpole.age % 6 == 0 && model.userTadpole.changed > 1 && webSocketService.hasConnection) {
-			model.userTadpole.changed = 0;
-			webSocketService.sendUpdate(model.userTadpole);
+		// Send movement updates at a fixed rate (instead of "age % N")
+		// This improves responsiveness especially at low FPS (e.g. 30fps) and
+		// reduces the "~1s" perceived latency on other clients.
+		if(!window.inputState.isDead && webSocketService.hasConnection && model.userTadpole) {
+			var tNow = (window.performance && performance.now) ? performance.now() : Date.now();
+			var isMoving = (model.userTadpole.targetMomentum > 0.01 || model.userTadpole.momentum > 0.01);
+			var sendInterval = isMoving ? 50 : 200; // 20/s when moving, 5/s when idle
+			var shouldSend = false;
+
+			// Send when we have enough accumulated change
+			if (model.userTadpole.changed > 0.25 && (tNow - app._lastNetSendAt) >= sendInterval) {
+				shouldSend = true;
+			}
+
+			// Keep-alive while moving so other clients stay smooth even when change is small
+			if (!shouldSend && isMoving && (tNow - app._lastNetKeepAliveAt) >= 120) {
+				shouldSend = true;
+			}
+
+			if (shouldSend) {
+				model.userTadpole.changed = 0;
+				webSocketService.sendUpdate(model.userTadpole);
+				app._lastNetSendAt = tNow;
+				app._lastNetKeepAliveAt = tNow;
+			}
 		}
 		
 		model.camera.update(model);
 		
 		// Update tadpoles
 		for(id in model.tadpoles) {
-			model.tadpoles[id].update(mouse, model);
+			var tp = model.tadpoles[id];
+			if (!tp || typeof tp.update !== 'function') { continue; }
+			tp.update(mouse, model);
 		}
 		
 		// Update waterParticles
@@ -124,7 +153,9 @@ var App = function(aSettings, aCanvas) {
 		
 		// Draw tadpoles
 		for(id in model.tadpoles) {
-			model.tadpoles[id].draw(context);
+			var tp = model.tadpoles[id];
+			if (!tp || typeof tp.draw !== 'function') { continue; }
+			tp.draw(context);
 		}
 		
 		// Start UI layer (reset transform matrix)
