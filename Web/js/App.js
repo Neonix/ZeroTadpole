@@ -188,11 +188,11 @@ var App = function(aSettings, aCanvas) {
 		console.log('Socket opened!', e);
 		
 		//FIXIT: Proof of concept. refactor!
-		uri = parseUri(document.location)
-		console.log(uri);
-		if ( uri.queryKey.oauth_token ) {
-			app.authorize(uri.queryKey.oauth_token, uri.queryKey.oauth_verifier)						
-		}
+		//uri = parseUri(document.location)
+		//console.log(uri);
+		//if ( uri.queryKey.oauth_token ) {
+		//	app.authorize(uri.queryKey.oauth_token, uri.queryKey.oauth_verifier)						
+		//}
 		// end of proof of concept code.
 	};
 	

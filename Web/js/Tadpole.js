@@ -369,6 +369,5 @@ var Tadpole = function() {
 	// Constructor
 	(function() {
 		tadpole.tail 	= new TadpoleTail(tadpole);
-		tadpole.punch	= new TadpolePunch(tadpole);
 	})();
 }
