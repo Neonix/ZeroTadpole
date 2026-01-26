@@ -21,6 +21,7 @@ class Player extends Character
     public $weaponLevel = 0;
     public $formatChecker;
     public $firepotionTimeout = 0;
+    public $respawnTimeout = 0;
     public $exitCallback;
     public $moveCallback;
     public $lootmoveCallback;
@@ -30,7 +31,26 @@ class Player extends Character
     public $broadcastCallback;
     public $broadcastzoneCallback;
     public $requestposCallback;
-    
+    public $pvpEnabled = false;
+    public $hasStarterPet = false;
+
+    // Anti-spam: rate limit certain failure messages
+    public $lastLootFailAt = 0.0;
+    public $lastLootFailReason = '';
+    public $lastSpellFailAt = 0.0;
+    public $lastSpellFailReason = '';
+    public $lastMeleeFailAt = 0.0;
+    public $lastMeleeFailReason = '';
+
+    public $lastInventoryFailAt = 0.0;
+    public $lastInventoryFailKey = '';
+
+    // Server-authoritative movement boosts & melee
+    public $speedBoostUntil = 0.0;
+    public $speedBoostMultiplier = 1.0;
+    public $nextMeleeAt = 0.0;
+
+
     public function __construct($connection, $worldServer)
     {
         $this->server = $worldServer;
@@ -78,8 +98,25 @@ class Player extends Character
         }
         
         $this->resetTimeout();
-        
-        if($action === TYPES_MESSAGES_HELLO) 
+
+        if ($this->isDead) {
+            // Death handling: ignore all gameplay actions while dead (prevents desync/move/spell/loot spam)
+            $allowedWhileDead = [
+                TYPES_MESSAGES_HELLO,
+                TYPES_MESSAGES_WHO,
+                TYPES_MESSAGES_CHAT,
+                'who',
+                'message',
+                'chat',
+                'private',
+                'pvp'
+            ];
+            if (!in_array($action, $allowedWhileDead, true)) {
+                return;
+            }
+        }
+
+if($action === TYPES_MESSAGES_HELLO) 
         {
             //var_dump($message);
             $name = isset($message["name"]) ? trim((string) $message["name"]) : null;
@@ -92,6 +129,7 @@ class Player extends Character
             //$this->equipArmor($message[2]);
             //$this->equipWeapon($message[3]);
             $this->orientation = Utils::randomOrientation();
+            $this->hitPoints = $this->maxHitPoints;
             $this->updateHitPoints();
             $this->updatePosition();
             
@@ -109,10 +147,18 @@ class Player extends Character
             //$this->connection->send(json_encode(array(TYPES_MESSAGES_WELCOME, $this->id, $this->name, $this->x, $this->y, $this->hitPoints)));
             $this->hasEnteredGame = true;
             $this->isDead = false;
+            $this->server->pushToPlayer($this, new Messages\HitPoints($this->maxHitPoints));
+            $this->server->pushToPlayer($this, $this->health());
         }
         elseif($action == TYPES_MESSAGES_WHO || $action === 'who')
         {
             $this->server->pushToPlayer($this, new Messages\PlayerList($this->server->getPlayerList()));
+        }
+        else if($action === 'pvp') {
+            $enabled = isset($message["enabled"]) ? (bool) $message["enabled"] : null;
+            if ($enabled !== null) {
+                $this->pvpEnabled = $enabled;
+            }
         }
         else if($action === 'private') {
             $targetId = isset($message["target"]) ? (int)$message["target"] : null;
@@ -141,7 +187,19 @@ class Player extends Character
                 $this->broadcastToZone(new Messages\Orb($orbId, $this->id), true);
             }
         }
-        else if($action == TYPES_MESSAGES_MOVE) {
+        else if($action === 'elite_hit') {
+    $mobId = isset($message["id"]) ? (string) $message["id"] : '';
+    $damage = isset($message["damage"]) ? (int) $message["damage"] : 0;
+    if($mobId !== '' && $damage > 0) {
+        // Compat: certains clients envoient encore "elite_hit"
+        if (method_exists($this->server, 'handleMobHit')) {
+            $this->server->handleMobHit($mobId, $damage, $this);
+        } elseif (method_exists($this->server, 'handleEliteMobHit')) {
+            $this->server->handleEliteMobHit($mobId, $damage, $this);
+        }
+    }
+}
+else if($action == TYPES_MESSAGES_MOVE) {
             //var_dump($message);
 
             if($this->moveCallback) 
@@ -189,8 +247,17 @@ class Player extends Character
                     $this->setPosition($x, $y, $angle, $momentum);
                     $this->clearTarget();
                     $this->server->handlePlayerSafeZone($this);
-                    
-                    $this->broadcast(new Messages\Move($this), false);
+// Mise à jour des groupes (visibilité) à chaque déplacement
+$hasChangedGroups = $this->server->handleEntityGroupMembership($this);
+if ($hasChangedGroups) {
+    $this->server->pushToPreviousGroups($this, new Messages\Destroy($this));
+    $this->server->pushRelevantEntityListTo($this);
+}
+
+                    // Ne pas renvoyer le mouvement au joueur lui-même.
+                    // Le client simule déjà son propre mouvement localement.
+                    // L'écho serveur introduit une latence visible (rubber-banding).
+                    $this->broadcast(new Messages\Move($this), true);
                 //$this->broadcast(0);
                     //call_user_func($this->moveCallback, $this->x, $this->y);
                 //}
@@ -223,24 +290,55 @@ class Player extends Character
             }
         }
         else if($action == TYPES_MESSAGES_ATTACK) {
-            $mob = $this->server->getEntityById($message[1]);
-            if($mob) 
+            $target = $this->server->getEntityById($message[1]);
+            if($target) 
             {
-                $this->setTarget($mob);
+                if($target instanceof Player) {
+                    if(
+                        !$this->pvpEnabled
+                        || !$target->pvpEnabled
+                        || $this->server->isPlayerInSafeZone($this)
+                        || $this->server->isPlayerInSafeZone($target)
+                    ) {
+                        return;
+                    }
+                }
+                $this->setTarget($target);
                 $this->server->broadcastAttacker($this);
             }
         }
         else if($action == TYPES_MESSAGES_HIT) {
-            $mob = $this->server->getEntityById($message[1]);
-            if($mob) 
+            $target = $this->server->getEntityById($message[1]);
+            if($target) 
             {
-                $dmg = Formulas::dmg($this->weaponLevel, $mob->armorLevel);
+                if($target instanceof Player) {
+                    if(
+                        !$this->pvpEnabled
+                        || !$target->pvpEnabled
+                        || $this->server->isPlayerInSafeZone($this)
+                        || $this->server->isPlayerInSafeZone($target)
+                        || $target->hitPoints <= 0
+                    ) {
+                        return;
+                    }
+                    $dmg = Formulas::dmg($this->weaponLevel, $target->armorLevel);
+                    if($dmg > 0) {
+                        $target->hitPoints -= $dmg;
+                        if($target->hitPoints <= 0) {
+                            $target->isDead = true;
+                        }
+                        $this->server->handleHurtEntity($target, $this, $dmg);
+                    }
+                    return;
+                }
+
+                $dmg = Formulas::dmg($this->weaponLevel, $target->armorLevel);
                 
-                if($dmg > 0 && is_callable(array($mob, 'receiveDamage')))
+                if($dmg > 0 && is_callable(array($target, 'receiveDamage')))
                 {
-                    $mob->receiveDamage($dmg, $this->id);
-                    $this->server->handleMobHate($mob->id, $this->id, $dmg);
-                    $this->server->handleHurtEntity($mob, $this, $dmg);
+                    $target->receiveDamage($dmg, $this->id);
+                    $this->server->handleMobHate($target->id, $this->id, $dmg);
+                    $this->server->handleHurtEntity($target, $this, $dmg);
                 }
             }
         }
@@ -342,6 +440,236 @@ class Player extends Character
             $angle = (float) $message['angle'];
             $this->broadcastToZone(new Messages\Spell($this, $spellId, $x, $y, $angle), true);
         }
+        // === GROUPE / PARTY ===
+        else if($action === 'group_create') {
+            $name = isset($message['name']) ? trim((string) $message['name']) : null;
+            $result = $this->server->groupManager->createGroup($this->id, $name);
+            $this->server->pushToPlayer($this, ['type' => 'group_result', 'action' => 'create', 'result' => $result]);
+        }
+        else if($action === 'group_invite') {
+            $targetId = isset($message['targetId']) ? $message['targetId'] : null;
+            if ($targetId) {
+                $result = $this->server->groupManager->invitePlayer($this->id, $targetId);
+                $this->server->pushToPlayer($this, ['type' => 'group_result', 'action' => 'invite', 'result' => $result]);
+            }
+        }
+        else if($action === 'group_accept') {
+            $result = $this->server->groupManager->acceptInvite($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'group_result', 'action' => 'accept', 'result' => $result]);
+        }
+        else if($action === 'group_decline') {
+            $result = $this->server->groupManager->declineInvite($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'group_result', 'action' => 'decline', 'result' => $result]);
+        }
+        else if($action === 'group_leave') {
+            $result = $this->server->groupManager->leaveGroup($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'group_result', 'action' => 'leave', 'result' => $result]);
+        }
+        else if($action === 'group_kick') {
+            $targetId = isset($message['targetId']) ? $message['targetId'] : null;
+            if ($targetId) {
+                $result = $this->server->groupManager->kickMember($this->id, $targetId);
+                $this->server->pushToPlayer($this, ['type' => 'group_result', 'action' => 'kick', 'result' => $result]);
+            }
+        }
+        else if($action === 'group_promote') {
+            $targetId = isset($message['targetId']) ? $message['targetId'] : null;
+            if ($targetId) {
+                $result = $this->server->groupManager->promoteLeader($this->id, $targetId);
+                $this->server->pushToPlayer($this, ['type' => 'group_result', 'action' => 'promote', 'result' => $result]);
+            }
+        }
+        // === INVENTAIRE ===
+        else if($action === 'inventory_use') {
+            $slotIndex = isset($message['slot']) ? (int) $message['slot'] : -1;
+            $result = $this->server->inventoryManager->useItem($this->id, $slotIndex);
+
+            // Anti-spam: ne pas renvoyer la même erreur en boucle (par slot + message)
+            if (!isset($result['success']) || $result['success']) {
+                $this->server->pushToPlayer($this, ['type' => 'inventory_result', 'action' => 'use', 'result' => $result]);
+            } else {
+                $reason = isset($result['error']) ? (string)$result['error'] : 'Erreur';
+                $key = strtolower($slotIndex . '|' . $reason);
+                $now = microtime(true);
+                if (($now - (float)$this->lastInventoryFailAt) > 0.8 || $this->lastInventoryFailKey !== $key) {
+                    $this->lastInventoryFailAt = $now;
+                    $this->lastInventoryFailKey = $key;
+                    $this->server->pushToPlayer($this, ['type' => 'inventory_result', 'action' => 'use', 'result' => $result]);
+                }
+            }
+        }
+        else if($action === 'inventory_drop') {
+            $slotIndex = isset($message['slot']) ? (int) $message['slot'] : -1;
+            $result = $this->server->inventoryManager->removeItem($this->id, $slotIndex);
+            if ($result['success'] && isset($result['itemId'])) {
+                // Créer un loot au sol
+                $this->server->createLoot($result['itemId'], $this->x, $this->y);
+            }
+            $this->server->pushToPlayer($this, ['type' => 'inventory_result', 'action' => 'drop', 'result' => $result]);
+        }
+        else if($action === 'spell_equip') {
+            $spellId = isset($message['spellId']) ? trim((string) $message['spellId']) : null;
+            $slotIndex = isset($message['slot']) ? (int) $message['slot'] : 0;
+            if ($spellId !== null) {
+                $result = $this->server->inventoryManager->equipSpell($this->id, $spellId, $slotIndex);
+                $this->server->pushToPlayer($this, ['type' => 'inventory_result', 'action' => 'equip_spell', 'result' => $result]);
+            }
+        }
+        else if($action === 'spell_cast') {
+            $slotIndex = isset($message['slot']) ? (int) $message['slot'] : 0;
+            $targetX = isset($message['x']) ? (float) $message['x'] : $this->x;
+            $targetY = isset($message['y']) ? (float) $message['y'] : $this->y;
+            $result = $this->server->inventoryManager->castSpell($this->id, $slotIndex, $targetX, $targetY);
+
+            // Anti-spam: don't flood the client with identical cooldown errors
+            if (!isset($result['success']) || $result['success']) {
+                $this->server->pushToPlayer($this, ['type' => 'spell_result', 'result' => $result]);
+            } else {
+                $reason = isset($result['error']) ? (string)$result['error'] : 'Sort en recharge';
+                $key = strtolower($slotIndex . '|' . $reason);
+                $now = microtime(true);
+                if (($now - (float)$this->lastSpellFailAt) > 0.8 || $this->lastSpellFailReason !== $key) {
+                    $this->lastSpellFailAt = $now;
+                    $this->lastSpellFailReason = $key;
+                    $this->server->pushToPlayer($this, ['type' => 'spell_result', 'result' => $result]);
+                }
+            }
+        }
+        
+        else if($action === 'melee') {
+            // Basic melee attack request (server-authoritative)
+            $result = $this->server->handleMeleeRequest($this);
+
+            // Anti-spam: don't flood identical cooldown/no-target errors
+            if (!isset($result['success']) || $result['success']) {
+                $this->server->pushToPlayer($this, array_merge(['type' => 'melee_result'], $result));
+            } else {
+                $reason = isset($result['error']) ? (string)$result['error'] : 'Impossible';
+                $key = strtolower('melee|' . $reason);
+                $now = microtime(true);
+                if (($now - (float)$this->lastMeleeFailAt) > 0.8 || $this->lastMeleeFailReason !== $key) {
+                    $this->lastMeleeFailAt = $now;
+                    $this->lastMeleeFailReason = $key;
+                    $this->server->pushToPlayer($this, array_merge(['type' => 'melee_result'], $result));
+                }
+            }
+        }
+
+        else if($action === 'loot_pickup') {
+            $lootId = isset($message['lootId']) ? $message['lootId'] : null;
+            if ($lootId) {
+                $this->server->handleLootPickup($this, $lootId);
+            }
+        }
+        // === TALENTS ===
+        else if($action === 'talent_learn') {
+            $tree = isset($message['tree']) ? trim((string) $message['tree']) : null;
+            $talent = isset($message['talent']) ? trim((string) $message['talent']) : null;
+            if ($tree && $talent) {
+                $result = $this->server->talentSystem->learnTalent($this->id, $tree, $talent);
+                $this->server->pushToPlayer($this, ['type' => 'talent_result', 'action' => 'learn', 'result' => $result]);
+            }
+        }
+        else if($action === 'talent_reset') {
+            $result = $this->server->talentSystem->resetTalents($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'talent_result', 'action' => 'reset', 'result' => $result]);
+        }
+        // === CRAFTING ===
+        else if($action === 'craft_start') {
+            $recipeId = isset($message['recipeId']) ? trim((string) $message['recipeId']) : null;
+            if ($recipeId) {
+                $result = $this->server->craftingSystem->startCraft($this->id, $recipeId);
+                $this->server->pushToPlayer($this, ['type' => 'craft_result', 'action' => 'start', 'result' => $result]);
+            }
+        }
+        else if($action === 'craft_cancel') {
+            $result = $this->server->craftingSystem->cancelCraft($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'craft_result', 'action' => 'cancel', 'result' => $result]);
+        }
+        // === PETS ===
+        else if($action === 'pet_activate') {
+            $petId = isset($message['petId']) ? $message['petId'] : null;
+            if ($petId) {
+                $result = $this->server->petSystem->activatePet($this->id, $petId);
+                $this->server->pushToPlayer($this, ['type' => 'pet_result', 'action' => 'activate', 'result' => $result]);
+            }
+        }
+        else if($action === 'pet_deactivate') {
+            $result = $this->server->petSystem->deactivatePet($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'pet_result', 'action' => 'deactivate', 'result' => $result]);
+        }
+        else if($action === 'pet_rename') {
+            $petId = isset($message['petId']) ? $message['petId'] : null;
+            $newName = isset($message['name']) ? trim((string) $message['name']) : null;
+            if ($petId && $newName) {
+                $result = $this->server->petSystem->renamePet($this->id, $petId, $newName);
+                $this->server->pushToPlayer($this, ['type' => 'pet_result', 'action' => 'rename', 'result' => $result]);
+            }
+        }
+        // === TRADING ===
+        else if($action === 'trade_request') {
+            $targetId = isset($message['targetId']) ? $message['targetId'] : null;
+            if ($targetId) {
+                $result = $this->server->tradingSystem->requestTrade($this->id, $targetId);
+                $this->server->pushToPlayer($this, ['type' => 'trade_result', 'action' => 'request', 'result' => $result]);
+            }
+        }
+        else if($action === 'trade_accept') {
+            $result = $this->server->tradingSystem->acceptTrade($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'trade_result', 'action' => 'accept', 'result' => $result]);
+        }
+        else if($action === 'trade_decline') {
+            $result = $this->server->tradingSystem->declineTrade($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'trade_result', 'action' => 'decline', 'result' => $result]);
+        }
+        else if($action === 'trade_add_item') {
+            $slot = isset($message['slot']) ? (int) $message['slot'] : -1;
+            $result = $this->server->tradingSystem->addItem($this->id, $slot);
+            $this->server->pushToPlayer($this, ['type' => 'trade_result', 'action' => 'add_item', 'result' => $result]);
+        }
+        else if($action === 'trade_remove_item') {
+            $slot = isset($message['slot']) ? (int) $message['slot'] : -1;
+            $result = $this->server->tradingSystem->removeItem($this->id, $slot);
+            $this->server->pushToPlayer($this, ['type' => 'trade_result', 'action' => 'remove_item', 'result' => $result]);
+        }
+        else if($action === 'trade_set_gems') {
+            $amount = isset($message['amount']) ? (int) $message['amount'] : 0;
+            $result = $this->server->tradingSystem->setGems($this->id, $amount);
+            $this->server->pushToPlayer($this, ['type' => 'trade_result', 'action' => 'set_gems', 'result' => $result]);
+        }
+        else if($action === 'trade_confirm') {
+            $result = $this->server->tradingSystem->confirmTrade($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'trade_result', 'action' => 'confirm', 'result' => $result]);
+        }
+        else if($action === 'trade_cancel') {
+            $result = $this->server->tradingSystem->cancelTrade($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'trade_result', 'action' => 'cancel', 'result' => $result]);
+        }
+        // === EVENTS / DAILY ===
+        else if($action === 'daily_claim') {
+            $result = $this->server->eventSystem->claimDailyReward($this->id);
+            $this->server->pushToPlayer($this, ['type' => 'daily_result', 'result' => $result]);
+        }
+        else if($action === 'boss_attack') {
+            $bossId = isset($message['bossId']) ? $message['bossId'] : null;
+            $damage = isset($message['damage']) ? (int) $message['damage'] : 10;
+            if ($bossId) {
+                $result = $this->server->eventSystem->damageWorldBoss($bossId, $this->id, $damage);
+                // Achievement tracking
+                if ($result['success']) {
+                    $this->server->achievementSystem->onPlayerAttack($this->id);
+                }
+            }
+        }
+        // === LEADERBOARD ===
+        else if($action === 'leaderboard_request') {
+            $category = isset($message['category']) ? trim((string) $message['category']) : null;
+            $this->server->leaderboardSystem->syncLeaderboard($this->id, $category);
+        }
+        // === ACHIEVEMENTS ===
+        else if($action === 'achievements_request') {
+            $this->server->achievementSystem->syncAchievements($this->id);
+        }
         else if($action == TYPES_MESSAGES_CHECK) {
             $checkpoint = $this->server->map->getCheckpoint($message[1]);
             if($checkpoint) 
@@ -364,6 +692,11 @@ class Player extends Character
         {
             Timer::del($this->firepotionTimeout);
             $this->firepotionTimeout = 0;
+        }
+        if(!empty($this->respawnTimeout))
+        {
+            Timer::del($this->respawnTimeout);
+            $this->respawnTimeout = 0;
         }
         Timer::del($this->disconnectTimeout);
         $this->disconnectTimeout = 0;

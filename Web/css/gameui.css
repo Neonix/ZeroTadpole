@@ -1,0 +1,1058 @@
+/**
+ * ZeroTadpole - GameUI CSS v5.0
+ * Interface utilisateur responsive mobile/desktop
+ */
+
+/* ============================================
+   VARIABLES
+   ============================================ */
+:root {
+    --ui-bg: rgba(10, 20, 35, 0.95);
+    --ui-bg-light: rgba(20, 40, 60, 0.9);
+    --ui-border: rgba(100, 150, 200, 0.3);
+    --ui-accent: #4a9eff;
+    --ui-success: #4ade80;
+    --ui-danger: #f87171;
+    --ui-warning: #fbbf24;
+    --ui-text: #e2e8f0;
+    --ui-text-dim: #94a3b8;
+    --ui-radius: 12px;
+    --ui-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+/* ============================================
+   QUICK BUTTONS
+   ============================================ */
+#quick-buttons {
+    position: fixed;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+}
+
+.quick-btn {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ui-bg);
+    border: 2px solid var(--ui-border);
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quick-btn:hover, .quick-btn:active {
+    background: var(--ui-bg-light);
+    border-color: var(--ui-accent);
+    transform: scale(1.1);
+}
+
+/* ============================================
+   PANELS
+   ============================================ */
+.game-panel {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius);
+    box-shadow: var(--ui-shadow);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: panelOpen 0.3s ease;
+}
+
+@keyframes panelOpen {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.game-panel.hidden {
+    display: none;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--ui-bg-light);
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.panel-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--ui-text);
+}
+
+.panel-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    color: var(--ui-text);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.panel-close:hover {
+    background: var(--ui-danger);
+}
+
+.panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================
+   TALENTS
+   ============================================ */
+.talent-points {
+    color: var(--ui-accent);
+    font-weight: bold;
+}
+
+.talent-trees {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+}
+
+.talent-tree h3 {
+    font-size: 14px;
+    margin: 0 0 12px 0;
+    color: var(--ui-accent);
+    text-align: center;
+}
+
+.talent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.talent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.talent.learnable {
+    border-color: var(--ui-success);
+    cursor: pointer;
+}
+
+.talent.learnable:hover {
+    background: rgba(74, 222, 128, 0.2);
+}
+
+.talent.maxed {
+    border-color: var(--ui-accent);
+    background: rgba(74, 158, 255, 0.1);
+}
+
+.talent-icon {
+    font-size: 20px;
+}
+
+.talent-name {
+    flex: 1;
+    font-size: 12px;
+    color: var(--ui-text);
+}
+
+.talent-rank {
+    font-size: 11px;
+    color: var(--ui-text-dim);
+    background: rgba(0,0,0,0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+#reset-talents {
+    margin-top: 16px;
+    width: 100%;
+}
+
+/* ============================================
+   ACHIEVEMENTS
+   ============================================ */
+.achievement-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.cat-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.1);
+    color: var(--ui-text);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cat-btn.active, .cat-btn:hover {
+    background: var(--ui-accent);
+}
+
+.achievement-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.achievement {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    border: 1px solid transparent;
+}
+
+.achievement.unlocked {
+    border-color: var(--ui-success);
+    background: rgba(74, 222, 128, 0.1);
+}
+
+.achievement.locked {
+    opacity: 0.6;
+}
+
+.ach-icon {
+    font-size: 28px;
+}
+
+.ach-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ach-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--ui-text);
+}
+
+.ach-desc {
+    font-size: 11px;
+    color: var(--ui-text-dim);
+}
+
+.ach-check {
+    color: var(--ui-success);
+    font-size: 20px;
+}
+
+#achievement-count {
+    color: var(--ui-accent);
+    font-size: 14px;
+}
+
+/* ============================================
+   LEADERBOARD
+   ============================================ */
+.leaderboard-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.lb-tab {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.1);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.lb-tab.active, .lb-tab:hover {
+    background: var(--ui-accent);
+}
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lb-entry {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 6px;
+}
+
+.lb-entry:nth-child(1) { background: rgba(255, 215, 0, 0.2); }
+.lb-entry:nth-child(2) { background: rgba(192, 192, 192, 0.2); }
+.lb-entry:nth-child(3) { background: rgba(205, 127, 50, 0.2); }
+
+.lb-rank {
+    font-size: 16px;
+    min-width: 30px;
+}
+
+.lb-name {
+    flex: 1;
+    font-size: 14px;
+}
+
+.lb-score {
+    font-weight: bold;
+    color: var(--ui-accent);
+}
+
+.leaderboard-player {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--ui-bg-light);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.your-rank {
+    color: var(--ui-accent);
+    font-weight: bold;
+}
+
+/* ============================================
+   CRAFTING
+   ============================================ */
+.craft-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.craft-cat {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.1);
+    color: var(--ui-text);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.craft-cat.active, .craft-cat:hover {
+    background: var(--ui-accent);
+}
+
+.craft-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.craft-recipe {
+    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    border: 1px solid transparent;
+}
+
+.craft-recipe.craftable {
+    border-color: var(--ui-success);
+}
+
+.craft-recipe.locked {
+    opacity: 0.6;
+}
+
+.recipe-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--ui-text);
+    display: block;
+    margin-bottom: 8px;
+}
+
+.recipe-ingredients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.ingredient {
+    font-size: 11px;
+    padding: 2px 6px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    color: var(--ui-text-dim);
+}
+
+.recipe-result {
+    font-size: 12px;
+    color: var(--ui-success);
+}
+
+.btn-craft {
+    margin-top: 8px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    background: var(--ui-success);
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.craft-reason {
+    font-size: 11px;
+    color: var(--ui-danger);
+}
+
+#craft-progress {
+    padding: 16px;
+    background: var(--ui-bg-light);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.progress-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--ui-accent);
+    transition: width 0.1s linear;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: var(--ui-text-dim);
+}
+
+/* ============================================
+   PETS
+   ============================================ */
+.active-pet {
+    padding: 16px;
+    background: var(--ui-bg-light);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.pet-active-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.no-pet {
+    color: var(--ui-text-dim);
+    font-style: italic;
+}
+
+.pet-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.pet-card {
+    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    text-align: center;
+}
+
+.pet-card.common { border-color: #9ca3af; }
+.pet-card.uncommon { border-color: #22c55e; }
+.pet-card.rare { border-color: #3b82f6; }
+.pet-card.epic { border-color: #a855f7; }
+.pet-card.legendary { border-color: #f59e0b; }
+
+.pet-card.active {
+    background: rgba(74, 158, 255, 0.2);
+}
+
+.pet-card .pet-icon {
+    font-size: 40px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.pet-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pet-card .pet-name {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.pet-card .pet-level {
+    font-size: 11px;
+    color: var(--ui-text-dim);
+}
+
+.pet-stats {
+    font-size: 11px;
+    color: var(--ui-accent);
+}
+
+.btn-activate, .btn-deactivate {
+    margin-top: 8px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.btn-activate {
+    background: var(--ui-success);
+    color: #000;
+}
+
+.btn-deactivate {
+    background: var(--ui-danger);
+    color: #fff;
+}
+
+/* ============================================
+   EVENTS
+   ============================================ */
+.daily-box {
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1));
+    border: 1px solid var(--ui-warning);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.daily-box h3 {
+    margin: 0 0 8px 0;
+    color: var(--ui-warning);
+}
+
+.daily-streak {
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.daily-today {
+    font-size: 12px;
+    color: var(--ui-text-dim);
+    margin-bottom: 12px;
+}
+
+.daily-claimed {
+    color: var(--ui-success);
+    font-weight: bold;
+}
+
+#active-events h3, #world-bosses h3 {
+    font-size: 14px;
+    margin: 16px 0 8px 0;
+    color: var(--ui-accent);
+}
+
+.event-card, .boss-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.event-icon, .boss-icon {
+    font-size: 28px;
+}
+
+.event-info, .boss-info {
+    flex: 1;
+}
+
+.event-name, .boss-name {
+    font-size: 14px;
+    font-weight: bold;
+    display: block;
+}
+
+.event-desc {
+    font-size: 11px;
+    color: var(--ui-text-dim);
+}
+
+.event-time {
+    font-size: 11px;
+    color: var(--ui-accent);
+}
+
+.boss-hp {
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 4px 0;
+}
+
+.boss-hp .hp-fill {
+    height: 100%;
+    background: var(--ui-danger);
+}
+
+.boss-location {
+    font-size: 10px;
+    color: var(--ui-text-dim);
+}
+
+.no-events, .no-bosses {
+    color: var(--ui-text-dim);
+    font-style: italic;
+    text-align: center;
+    padding: 16px;
+}
+
+/* ============================================
+   TRADING
+   ============================================ */
+.trade-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.trade-side {
+    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+}
+
+.trade-side h3 {
+    font-size: 14px;
+    margin: 0 0 12px 0;
+    text-align: center;
+}
+
+.trade-items {
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.trade-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.remove-item {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: var(--ui-danger);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.trade-gems {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.trade-gems input {
+    width: 80px;
+    padding: 6px;
+    border: 1px solid var(--ui-border);
+    border-radius: 4px;
+    background: rgba(0,0,0,0.3);
+    color: var(--ui-text);
+    text-align: center;
+}
+
+.trade-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.empty-trade {
+    color: var(--ui-text-dim);
+    font-size: 11px;
+    text-align: center;
+    padding: 20px;
+}
+
+/* ============================================
+   MINIMAP
+   ============================================ */
+.minimap {
+    position: fixed;
+    bottom: 80px;
+    right: 10px;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--ui-border);
+    background: var(--ui-bg);
+    z-index: 50;
+}
+
+#minimap-canvas {
+    border-radius: 50%;
+}
+
+/* ============================================
+   NOTIFICATIONS
+   ============================================ */
+.notifications {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 300;
+    pointer-events: none;
+}
+
+.notification {
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text);
+    font-size: 14px;
+    animation: notifSlide 0.3s ease;
+    pointer-events: auto;
+}
+
+@keyframes notifSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.notification.fade-out {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.notification-success { border-color: var(--ui-success); }
+.notification-error { border-color: var(--ui-danger); }
+.notification-event { border-color: var(--ui-warning); background: rgba(251, 191, 36, 0.2); }
+.notification-boss { border-color: #a855f7; background: rgba(168, 85, 247, 0.2); }
+.notification-trade { border-color: var(--ui-accent); }
+
+/* ============================================
+   ACHIEVEMENT POPUP
+   ============================================ */
+.achievement-popup {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, rgba(74, 222, 128, 0.3), rgba(34, 197, 94, 0.2));
+    border: 2px solid var(--ui-success);
+    border-radius: 12px;
+    z-index: 400;
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+    transition: all 0.5s ease;
+}
+
+.achievement-popup.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.achievement-popup .achievement-icon {
+    font-size: 40px;
+}
+
+.achievement-popup .achievement-title {
+    display: block;
+    font-size: 12px;
+    color: var(--ui-success);
+    text-transform: uppercase;
+}
+
+.achievement-popup .achievement-name {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-success {
+    background: var(--ui-success);
+    color: #000;
+}
+
+.btn-danger {
+    background: var(--ui-danger);
+    color: #fff;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.btn:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.empty {
+    text-align: center;
+    color: var(--ui-text-dim);
+    padding: 20px;
+    font-style: italic;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    #quick-buttons {
+        right: 5px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        top: auto;
+        bottom: 140px;
+        transform: none;
+        max-width: 120px;
+        justify-content: flex-end;
+    }
+    
+    .quick-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+    }
+    
+    .game-panel {
+        width: 95%;
+        max-height: 70vh;
+        top: auto;
+        bottom: 10px;
+        transform: translateX(-50%);
+    }
+    
+    .panel-header {
+        padding: 12px 16px;
+    }
+    
+    .panel-header h2 {
+        font-size: 16px;
+    }
+    
+    .panel-content {
+        padding: 12px;
+    }
+    
+    .talent-trees {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .trade-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .minimap {
+        width: 100px;
+        height: 100px;
+        bottom: 140px;
+    }
+    
+    #minimap-canvas {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .notifications {
+        top: 60px;
+        width: 90%;
+    }
+    
+    .notification {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .achievement-popup {
+        padding: 12px 16px;
+        width: 90%;
+    }
+    
+    .achievement-popup .achievement-icon {
+        font-size: 30px;
+    }
+    
+    .achievement-popup .achievement-name {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    #quick-buttons {
+        max-width: 90px;
+    }
+    
+    .quick-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+    
+    .talent-trees {
+        grid-template-columns: 1fr;
+    }
+    
+    .pet-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================
+   TOUCH INTERACTIONS
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+    .quick-btn:active {
+        transform: scale(0.95);
+    }
+    
+    .talent.learnable:active {
+        background: rgba(74, 222, 128, 0.3);
+    }
+    
+    .btn:active {
+        transform: scale(0.98);
+    }
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+.panel-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.panel-content::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+    background: var(--ui-border);
+    border-radius: 3px;
+}
+
+.panel-content::-webkit-scrollbar-thumb:hover {
+    background: var(--ui-accent);
+}
+
+/* ============================================
+   SAFE AREA (NOTCH)
+   ============================================ */
+@supports (padding-top: env(safe-area-inset-top)) {
+    #quick-buttons {
+        padding-right: env(safe-area-inset-right);
+    }
+    
+    .minimap {
+        margin-right: env(safe-area-inset-right);
+        margin-bottom: env(safe-area-inset-bottom);
+    }
+}

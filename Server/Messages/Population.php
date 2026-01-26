@@ -26,9 +26,9 @@ class Population
     public function serialize()
     {
         return array(
-            'type' => 'population',
-            'world' => $this->world,
-            'total' => $this->total,
+            TYPES_MESSAGES_POPULATION,
+            $this->world,
+            $this->total,
         );
     }
 }

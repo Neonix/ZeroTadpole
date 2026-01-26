@@ -18,7 +18,13 @@ class Map
     public $isLoaded;
     public $width;
     public $height;
+    public $tileSize = 16;
     public $collisions;
+    /**
+     * For large maps we keep collisions as a sparse set instead of building a huge 2D grid.
+     * Keys are tile indexes (0-based) for legacy tile maps.
+     */
+    public $collisionSet = array();
     public $mobAreas;
     public $chestAreas;
     public $staticChests;
@@ -33,6 +39,11 @@ class Map
     public $filePath;
     public $checkpoints = array();
     public $startingAreas = array();
+    // New-format fields (world_server.json)
+    public $spawnPoint = array('x' => 0, 'y' => 0);
+    public $zones = array();
+    public $npcs = array();
+    public $landmarks = array();
     
     public function __construct($filepath)
     {
@@ -47,16 +58,47 @@ class Map
         {
             echo "$file  doesn't exist.\n";
         }
-        $map = json_decode(file_get_contents($file));
+        $raw = file_get_contents($file);
+        $map = json_decode($raw);
+        if(!$map)
+        {
+            throw new \RuntimeException("Invalid JSON map file: {$file}");
+        }
 
+        // -----------------------------------------------------------------
+        // Compatibility layer: supports both legacy BrowserQuest-like maps
+        // and the new ZeroTadpole world_server.json format.
+        // -----------------------------------------------------------------
 
-        $this->width = $map->width;
-        $this->height = $map->height;
-        $this->collisions = (array)$map->collisions;
-        $this->mobAreas = (array)$map->roamingAreas;
-        $this->chestAreas = (array)$map->chestAreas;
-        $this->staticChests = (array) $map->staticChests;
-        $this->staticEntities = (array)$map->staticEntities;
+        $this->width = (int)($map->width ?? 0);
+        $this->height = (int)($map->height ?? 0);
+        $this->tileSize = (int)($map->tilesize ?? ($map->tileSize ?? $this->tileSize));
+
+        $this->collisions = (array)($map->collisions ?? []);
+        $this->collisionSet = [];
+        if(!empty($this->collisions))
+        {
+            // Keep a sparse set to avoid allocating huge 2D grids.
+            foreach ($this->collisions as $idx) {
+                $this->collisionSet[(int)$idx] = true;
+            }
+        }
+
+        // Legacy fields (may be absent in the new map format)
+        $this->mobAreas = (array)($map->roamingAreas ?? []);
+        $this->chestAreas = (array)($map->chestAreas ?? []);
+        $this->staticChests = (array)($map->staticChests ?? []);
+        $this->staticEntities = (array)($map->staticEntities ?? []);
+
+        // New-format fields
+        if(isset($map->spawnPoint) && isset($map->spawnPoint->x) && isset($map->spawnPoint->y))
+        {
+            $this->spawnPoint = ['x' => (float)$map->spawnPoint->x, 'y' => (float)$map->spawnPoint->y];
+        }
+        $this->zones = (array)($map->zones ?? []);
+        $this->npcs = (array)($map->npcs ?? []);
+        $this->landmarks = (array)($map->landmarks ?? []);
+
         $this->isLoaded = true;
         
         // ??
@@ -71,8 +113,8 @@ class Map
         $this->groupWidth = floor($this->width / $this->zoneWidth);
         $this->groupHeight = floor($this->height / $this->zoneHeight);
         
-        $this->initConnectedGroups($map->doors);
-        $this->initCheckpoints($map->checkpoints);
+        $this->initConnectedGroups($map->doors ?? []);
+        $this->initCheckpoints($map->checkpoints ?? []);
         
         if($this->readyFunc)
         {
@@ -110,28 +152,37 @@ class Map
     
     public function generateCollisionGrid()
     {
-        $this->grid = array();
-        
-        if($this->isLoaded) 
+        // Legacy tile-based collision grid. The new world map uses a continuous
+        // coordinate system and usually has no collisions (open ocean).
+        // Building a full 2D PHP array for large maps (e.g. 3000x3000) will
+        // explode memory, so we only build the grid for small maps.
+
+        $this->grid = null;
+        if(!$this->isLoaded) return;
+
+        if(empty($this->collisions))
         {
-            $tile_index = 0;
-            $collisions_map = array_flip($this->collisions);
-            for($i = 0; $i < $this->height; $i++) 
+            return;
+        }
+
+        $totalTiles = (int)$this->width * (int)$this->height;
+        $maxGridTiles = 250000; // 500x500 safeguard
+        if($totalTiles > $maxGridTiles)
+        {
+            // Keep sparse set only.
+            return;
+        }
+
+        $this->grid = array();
+        $tile_index = 0;
+        $collisions_map = $this->collisionSet ?: array_flip($this->collisions);
+        for($i = 0; $i < $this->height; $i++)
+        {
+            $this->grid[$i] = array();
+            for($j = 0; $j < $this->width; $j++)
             {
-                $this->grid[$i] = array();
-                for($j = 0; $j < $this->width; $j++) 
-                {
-                    // @todo use isset 
-                    if(isset($collisions_map[$tile_index])) 
-                    {
-                        $this->grid[$i][$j] = 1;
-                    }
-                    else 
-                    {
-                        $this->grid[$i][$j] = 0;
-                    }
-                    $tile_index += 1;
-                }
+                $this->grid[$i][$j] = isset($collisions_map[$tile_index]) ? 1 : 0;
+                $tile_index += 1;
             }
         }
     }
@@ -147,7 +198,13 @@ class Map
         {
             return false;
         }
-        return $this->grid[$y][$x] == 1;
+        if(is_array($this->grid) && isset($this->grid[$y]) && isset($this->grid[$y][$x]))
+        {
+            return $this->grid[$y][$x] == 1;
+        }
+        // Sparse set fallback (legacy tile maps)
+        $tile_index = ((int)$y * (int)$this->width) + (int)$x;
+        return isset($this->collisionSet[$tile_index]);
     }
     
     public function GroupIdToGroupPosition($id)
@@ -196,12 +253,9 @@ class Map
         {
             array_walk($this->connectedGroups[$id], function ($position) use (&$list, $self){
                 // don't add a connected group if it's already part of the surrounding ones.
-                if(Utils::any($list, function($group_pos)use($position, $self) {
+                if(!Utils::any($list, function($group_pos)use($position, $self) {
                     return $self->equalPositions($group_pos, $position);
-                })) 
-                {
-                    $list[] = $position;
-                }
+                })) $list[] = $position;
             });
         }
         
@@ -226,8 +280,13 @@ class Map
     public function initConnectedGroups($doors)
     {
         $self = $this;
-        array_walk($doors, function($door)use($self)
+        $doorsArr = is_array($doors) ? $doors : (array)$doors;
+        array_walk($doorsArr, function($door)use($self)
         {
+            if(!isset($door->x) || !isset($door->y) || !isset($door->tx) || !isset($door->ty))
+            {
+                return;
+            }
             $group_id = $self->getGroupIdFromPosition($door->x, $door->y);
             $connectedgroup_id = $self->getGroupIdFromPosition($door->tx, $door->ty);
             $connectedPosition = $self->GroupIdToGroupPosition($connectedgroup_id);
@@ -248,14 +307,27 @@ class Map
         $this->checkpoints = array();
         $this->startingAreas = array();
         $self = $this;
-        array_walk($cpList, function($cp)use($self) 
+        $cpArr = is_array($cpList) ? $cpList : (array)$cpList;
+        $i = 0;
+        array_walk($cpArr, function($cp)use($self, &$i) 
         {
-            $checkpoint = new Checkpoint($cp->id, $cp->x, $cp->y, $cp->w, $cp->h);
+            // Legacy format: {id,x,y,w,h,s}
+            // New format: {x,y,radius}
+            $id = $cp->id ?? ("cp".$i);
+            $x = (float)($cp->x ?? 0);
+            $y = (float)($cp->y ?? 0);
+            $w = isset($cp->w) ? (float)$cp->w : null;
+            $h = isset($cp->h) ? (float)$cp->h : null;
+            $radius = isset($cp->radius) ? (float)$cp->radius : null;
+            $isStarting = isset($cp->s) ? ((int)$cp->s === 1) : true;
+
+            $checkpoint = new Checkpoint($id, $x, $y, $w, $h, $radius, $isStarting);
             $self->checkpoints[$checkpoint->id] = $checkpoint;
-            if($cp->s == 1) 
+            if($checkpoint->isStarting)
             {
                 $self->startingAreas[] = $checkpoint;
             }
+            $i++;
         });
     }
     
@@ -267,14 +339,18 @@ class Map
     public function getRandomStartingPosition()
     {
         $nbAreas = count($this->startingAreas);
-        $i = rand(0, $nbAreas-1);
+        if($nbAreas <= 0)
+        {
+            // New map format may omit explicit starting areas.
+            return ['x' => (float)($this->spawnPoint['x'] ?? 0), 'y' => (float)($this->spawnPoint['y'] ?? 0)];
+        }
+        $i = rand(0, $nbAreas - 1);
         $area = $this->startingAreas[$i];
-        
         return $area->getRandomPosition();
     }
     
     public function equalPositions($pos1, $pos2)
     {
-        return $pos1['x'] == $pos2['x'] && $pos2['y'] == $pos2['y'];
+        return $pos1['x'] == $pos2['x'] && $pos1['y'] == $pos2['y'];
     }
 }

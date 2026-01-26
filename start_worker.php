@@ -19,19 +19,34 @@ use \Server\WorldServer;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-// BrowserQuest Server
-$ws_worker = new Worker('Websocket://0.0.0.0:8282');
+// Charger la configuration le plus tôt possible pour synchroniser le port WS
+$configPath = __DIR__ . '/config.json';
+$config = [];
+if (file_exists($configPath)) {
+    $parsed = json_decode(file_get_contents($configPath), true);
+    if (is_array($parsed)) {
+        $config = $parsed;
+    }
+}
+
+$wsPort = isset($config['port']) ? (int)$config['port'] : 8282;
+$wsHost = $config['host'] ?? '0.0.0.0';
+
+// WebSocket server
+$ws_worker = new Worker('Websocket://' . $wsHost . ':' . $wsPort);
 $ws_worker->name = 'ZeroWorker';
+$ws_worker->config = $config;
 
 
 $ws_worker->onWorkerStart = function($ws_worker)
 {
 
-
-
     $ws_worker->server = new \Server\Server();
 
-    $ws_worker->config = json_decode(file_get_contents(__DIR__ . '/config.json'), true);
+    // Réutiliser la config déjà lue (fallback si nécessaire)
+    if (!is_array($ws_worker->config) || empty($ws_worker->config)) {
+        $ws_worker->config = json_decode(file_get_contents(__DIR__ . '/config.json'), true);
+    }
     $ws_worker->worlds = array();
     
     foreach(range(0, $ws_worker->config['nb_worlds']-1) as $i)

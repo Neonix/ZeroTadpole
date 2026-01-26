@@ -1,1 +1,79 @@
-{"width": 172, "height": 314, "collisions": [], "doors": [], "checkpoints": [], "roamingAreas": [], "chestAreas": [], "staticChests": [], "staticEntities": {"1731": "guard", "1750": "rat", "1765": "goblin"}, "tilesize": 16}
+{
+    "width": 3000,
+    "height": 3000,
+    "tilesize": 16,
+    "spawnPoint": {"x": 0, "y": 0},
+    "zones": {
+        "tutorial": {
+            "name": "Zone Tutoriel",
+            "center": {"x": 0, "y": 0},
+            "radius": 200,
+            "safe": true,
+            "damageMultiplier": 0,
+            "mobTypes": ["training_bubble", "friendly_fish"],
+            "maxMobs": 8,
+            "color": "#87CEEB"
+        },
+        "transition": {
+            "name": "Eaux Peu Profondes",
+            "innerRadius": 200,
+            "outerRadius": 400,
+            "safe": false,
+            "damageMultiplier": 0.5,
+            "mobTypes": ["bubble_fish", "baby_crab"],
+            "maxMobs": 12,
+            "color": "#98D8C8"
+        },
+        "normal": {
+            "name": "Eaux Normales",
+            "innerRadius": 400,
+            "outerRadius": 800,
+            "safe": false,
+            "damageMultiplier": 1.0,
+            "mobTypes": ["crab_small", "jellyfish", "crab_giant"],
+            "maxMobs": 18,
+            "color": "#5DADE2"
+        },
+        "danger": {
+            "name": "Eaux Profondes",
+            "innerRadius": 800,
+            "outerRadius": 1500,
+            "safe": false,
+            "damageMultiplier": 1.5,
+            "mobTypes": ["electric_eel", "shark_mini", "manta_ray", "octopus_boss"],
+            "maxMobs": 15,
+            "color": "#2E4053"
+        }
+    },
+    "npcs": [
+        {
+            "id": "npc_sage",
+            "name": "Sage Ovule",
+            "type": "guide",
+            "x": 50,
+            "y": 50,
+            "dialogue": ["Bienvenue jeune têtard !", "Explore les zones pour progresser.", "Attention aux créatures hostiles !"]
+        },
+        {
+            "id": "npc_merchant",
+            "name": "Marchand Bulle",
+            "type": "merchant",
+            "x": -60,
+            "y": 80,
+            "dialogue": ["Des items rares à vendre !", "Échange tes gemmes contre des trésors."]
+        }
+    ],
+    "landmarks": [
+        {"name": "Récif Central", "x": 0, "y": 0, "radius": 50},
+        {"name": "Grotte des Crabes", "x": 500, "y": 300, "radius": 80},
+        {"name": "Antre du Poulpe", "x": -600, "y": 400, "radius": 100},
+        {"name": "Fosse Abyssale", "x": 0, "y": -900, "radius": 150}
+    ],
+    "collisions": [],
+    "doors": [],
+    "checkpoints": [
+        {"x": 0, "y": 0, "radius": 50},
+        {"x": 300, "y": 0, "radius": 30},
+        {"x": -300, "y": 0, "radius": 30}
+    ]
+}

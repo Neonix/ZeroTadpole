@@ -24,8 +24,8 @@ class PlayerList
     public function serialize()
     {
         return array(
-            'type' => 'players',
-            'players' => $this->players
+            'players',
+            $this->players
         );
     }
 }

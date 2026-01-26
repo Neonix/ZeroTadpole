@@ -4,6 +4,16 @@ var Settings = function() {
 	var domain = document.domain;
 	var port = 8282;
 	
+	// Override possible via paramètres URL
+	var urlParams = new URLSearchParams(window.location.search);
+	var customPort = urlParams.get('ws_port');
+	if (customPort) {
+		var parsed = parseInt(customPort, 10);
+		if (!isNaN(parsed) && parsed > 0) {
+			port = parsed;
+		}
+	}
+	
 	// Configuration flexible pour différents environnements
 	var knownDomains = ['workerman.net', 'phpgame.cn'];
 	var isKnownDomain = knownDomains.some(function(d) { 
@@ -23,7 +33,6 @@ var Settings = function() {
 	}
 	
 	// Override possible via paramètre URL
-	var urlParams = new URLSearchParams(window.location.search);
 	var customServer = urlParams.get('ws');
 	if (customServer) {
 		this.socketServer = customServer;

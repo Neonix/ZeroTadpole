@@ -872,15 +872,23 @@ body {
     height: 44px;
     border: none;
     border-radius: var(--radius-md);
-    background: var(--primary);
-    color: var(--bg-dark);
-    font-size: 1.1rem;
+    background: linear-gradient(145deg, #8ce6de, #4dbbb1);
+    color: #0a1628;
+    font-size: 1.15rem;
+    font-weight: 700;
+    box-shadow: 0 6px 14px rgba(12, 25, 44, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.5);
     cursor: pointer;
     transition: var(--transition-fast);
 }
 
 .btn-send:hover {
-    background: var(--primary-dark);
+    transform: translateY(-1px);
+    background: linear-gradient(145deg, #9ff2eb, #56c8be);
+}
+
+.btn-send:active {
+    transform: translateY(1px);
+    box-shadow: 0 3px 8px rgba(12, 25, 44, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 /* ============================================
@@ -1260,8 +1268,8 @@ body {
    ============================================ */
 
 #toast-container {
-    position: absolute;
-    bottom: calc(var(--safe-bottom) + 80px);
+    position: fixed;
+    top: calc(var(--hud-height) + var(--safe-top) + 10px);
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -1269,6 +1277,8 @@ body {
     gap: 8px;
     z-index: 300;
     pointer-events: none;
+    width: min(520px, calc(100vw - 24px));
+    max-height: calc(100vh - (var(--hud-height) + var(--safe-top) + 140px));
 }
 
 .toast {
@@ -1282,7 +1292,17 @@ body {
     font-weight: 500;
     box-shadow: var(--shadow-md);
     animation: toastIn 0.3s ease, toastOut 0.3s ease 2.2s forwards;
-    white-space: nowrap;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+    .toast {
+        font-size: 0.85rem;
+        padding: 10px 14px;
+    }
 }
 
 @keyframes toastIn {
@@ -2451,6 +2471,30 @@ body {
     justify-content: center;
 }
 
+/* Server-mode bag: render a real grid (20 slots) with scroll (mobile friendly) */
+.profile-slots.bag-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 60px);
+    justify-content: center;
+    gap: 10px;
+    padding: 6px 4px;
+    max-height: 220px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 600px) {
+    .profile-slots.bag-grid {
+        grid-template-columns: repeat(4, 56px);
+        max-height: 200px;
+    }
+    .profile-slots.bag-grid .profile-slot {
+        width: 56px;
+        height: 56px;
+    }
+}
+
 .profile-slot {
     width: 60px;
     height: 60px;
@@ -2462,6 +2506,23 @@ body {
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    position: relative;
+}
+
+.profile-slot-qty {
+    position: absolute;
+    right: 4px;
+    bottom: 2px;
+    font-size: 0.75rem;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--text);
+}
+
+.profile-slot.selected {
+    outline: 2px solid var(--primary);
+    box-shadow: var(--shadow-glow);
 }
 
 .profile-slot:hover {

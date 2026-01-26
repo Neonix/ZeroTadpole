@@ -55,6 +55,13 @@
         }
     };
 
+    // UI shared state (spell equip mode, etc.)
+    window.uiState = window.uiState || {
+        pendingEquipSpellId: null,
+        pendingEquipFromInvSlot: null,
+        _pendingBagEl: null
+    };
+
     // ============================================
     // DOM Elements Cache
     // ============================================
@@ -85,7 +92,7 @@
         dom.introPanel = document.getElementById('intro-panel');
         
         // Profile
-        dom.profileName = document.getElementById('profile-name');
+        dom.profileNameDisplay = document.getElementById('profile-name-display');
         dom.profileColor = document.getElementById('profile-color');
         dom.profileSave = document.getElementById('profile-save');
         dom.colorSwatches = document.getElementById('color-swatches');
@@ -149,6 +156,20 @@
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) ||
                ('ontouchstart' in window);
+    }
+
+    function isIOSLike() {
+        // iOS Safari doesn't support requestFullscreen for arbitrary elements.
+        // iPadOS can report as MacIntel with touch.
+        const ua = navigator.userAgent || '';
+        const isIOSUA = /iPad|iPhone|iPod/i.test(ua);
+        const isIPadOS = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+        return isIOSUA || isIPadOS;
+    }
+
+    function fullscreenSupported() {
+        const el = document.documentElement;
+        return !!(el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen);
     }
 
     function setVH() {
@@ -247,6 +268,18 @@
         if (state.currentPanel === panel) {
             state.currentPanel = null;
         }
+
+        // Reset any pending bag->hotbar equip when closing the profile (prevents "sac" bugs)
+        try {
+            if (panel && panel.id === 'profile-panel' && window.uiState) {
+                if (window.uiState._pendingBagEl) {
+                    window.uiState._pendingBagEl.classList.remove('selected');
+                    window.uiState._pendingBagEl = null;
+                }
+                window.uiState.pendingEquipSpellId = null;
+                window.uiState.pendingEquipFromInvSlot = null;
+            }
+        } catch (e) {}
     }
 
     function togglePanel(panel) {
@@ -271,6 +304,16 @@
     // ============================================
     
     function toggleFullscreen() {
+        if (isIOSLike()) {
+            showToast('Sur iPhone/iPad, le plein écran Safari n\'est pas disponible. Pour un vrai plein écran: Partager → « Sur l\'écran d\'accueil ».', 'info', { throttleMs: 6000 });
+            return;
+        }
+
+        if (!fullscreenSupported()) {
+            showToast('Plein écran non supporté sur ce navigateur.', 'warning', { throttleMs: 4000 });
+            return;
+        }
+
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
             const elem = document.documentElement;
             if (elem.requestFullscreen) {
@@ -313,7 +356,9 @@
         const hasChosenColor = storage.get('tadpole_color_chosen');
         const questsCompleted = parseInt(storage.get('tadpole_quests_completed', '0'), 10);
         
-        dom.profileName.value = savedName;
+        if (dom.profileNameDisplay) {
+            dom.profileNameDisplay.textContent = savedName || 'Têtard';
+        }
         dom.profileColor.value = savedColor;
         dom.introName.value = savedName;
         
@@ -508,7 +553,7 @@
     }
 
     function saveProfile() {
-        const name = dom.profileName.value.trim();
+        const name = storage.get('tadpole_name', '').trim();
         const color = dom.profileColor.value;
         const hasChosenColor = storage.get('tadpole_color_chosen');
         
@@ -516,9 +561,7 @@
             showToast('Entre un nom pour ton têtard !', 'warning');
             return;
         }
-        
-        storage.set('tadpole_name', name);
-        
+
         // Only update color if not definitively chosen, or allow minor changes
         if (!hasChosenColor) {
             storage.set('tadpole_color', color);
@@ -554,7 +597,9 @@
         storage.set('tadpole_has_seen', '1');
         storage.set('tadpole_quests_completed', '0');
         
-        dom.profileName.value = name;
+        if (dom.profileNameDisplay) {
+            dom.profileNameDisplay.textContent = name;
+        }
         dom.profileColor.value = defaultColor;
         updateTadpoleColor(defaultColor);
         updatePreviewCanvas(defaultColor);
@@ -604,25 +649,126 @@
         if (killsEl) killsEl.textContent = stats.kills;
         if (questsEl) questsEl.textContent = stats.questsCompleted;
         
-        // Update inventory display
-        for (let i = 0; i < 3; i++) {
-            const slot = document.getElementById(`profile-slot-${i}`);
-            if (!slot) continue;
-            
-            const item = inventory.getItem(i);
-            const iconEl = slot.querySelector('.profile-slot-icon');
-            
-            if (item) {
-                if (iconEl) iconEl.textContent = item.icon;
-                slot.className = `profile-slot rarity-${item.rarity}`;
-                slot.title = `${item.name}\n${item.description}`;
+        // Render full bag (server inventory) so players can drop items/spells to free space.
+        // Interaction:
+        // - Tap a spell in bag => choose hotbar slot A/Z/E/R to equip
+        // - Long press (mobile) or right-click (desktop) => drop item on the ground
+        const grid = document.querySelector('.profile-slots');
+        if (!grid) return;
+
+        const ensureBagGrid = () => {
+            const invMax = (inventory && inventory._serverMode) ? (inventory.maxSlots || 20) : (inventory._legacyMaxSlots || 4);
+            if (!grid.classList.contains('bag-grid')) grid.classList.add('bag-grid');
+            if (grid.childElementCount === invMax) return;
+
+            grid.innerHTML = '';
+            for (let i = 0; i < invMax; i++) {
+                const el = document.createElement('div');
+                el.className = 'profile-slot empty';
+                el.dataset.invSlot = String(i);
+                el.innerHTML = `<span class="profile-slot-icon"></span><span class="profile-slot-qty"></span>`;
+
+                // Desktop: right click to drop
+                el.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const idx = parseInt(el.dataset.invSlot, 10);
+                    const itemSlot = inventory?._serverMode ? (inventory.slots?.[idx] || null) : null;
+                    const itemId = itemSlot?.itemId || (inventory?.items ? inventory.items[idx] : null);
+                    if (!itemId) return;
+                    const def = itemId ? (ITEMS[itemId] || {}) : null;
+                    const name = def?.name || itemId || 'cet item';
+                    if (confirm(`Jeter ${name} ?`)) {
+                        inventory?.dropItem(idx, state.app?.model);
+                    }
+                });
+
+                // Mobile: long press to drop (with confirm)
+                let pressTimer = null;
+                let longPressed = false;
+                el.addEventListener('touchstart', (e) => {
+                    longPressed = false;
+                    pressTimer = setTimeout(() => {
+                        longPressed = true;
+                        const idx = parseInt(el.dataset.invSlot, 10);
+                        const itemSlot = inventory?._serverMode ? (inventory.slots?.[idx] || null) : null;
+                        const itemId = itemSlot?.itemId || (inventory?.items ? inventory.items[idx] : null);
+                        if (!itemId) return;
+                        const def = itemId ? (ITEMS[itemId] || {}) : null;
+                        const name = def?.name || itemId || 'cet item';
+                        if (confirm(`Jeter ${name} ?`)) {
+                            inventory?.dropItem(idx, state.app?.model);
+                        }
+                    }, 520);
+                }, { passive: true });
+                el.addEventListener('touchend', () => {
+                    if (pressTimer) clearTimeout(pressTimer);
+                    pressTimer = null;
+                }, { passive: true });
+                el.addEventListener('touchmove', () => {
+                    if (pressTimer) clearTimeout(pressTimer);
+                    pressTimer = null;
+                }, { passive: true });
+
+                // Tap: select spell to equip
+                el.addEventListener('click', (e) => {
+                    if (longPressed) return;
+                    const idx = parseInt(el.dataset.invSlot, 10);
+					const slotData = inventory?._serverMode ? (inventory.slots?.[idx] || null) : null;
+					const itemId = slotData?.itemId || (inventory?.items ? inventory.items[idx] : null);
+                    if (!itemId) return;
+                    const def = ITEMS[itemId] || {};
+                    if ((def.type || slotData?.type) === 'spell') {
+                        // arm equip mode
+                        if (window.uiState._pendingBagEl) {
+                            window.uiState._pendingBagEl.classList.remove('selected');
+                        }
+                        window.uiState.pendingEquipSpellId = itemId;
+                        window.uiState.pendingEquipFromInvSlot = idx;
+                        window.uiState._pendingBagEl = el;
+                        el.classList.add('selected');
+                        showToast(`Choisis un slot A/Z/E/R pour équiper ${def.icon || ''} ${def.name || 'ce sort'}`, 'info');
+                    } else {
+                        // For non-spell items, just show details.
+                        showToast(`${def.icon || '🎒'} ${def.name || itemId}`, 'info');
+                    }
+                });
+
+                grid.appendChild(el);
+            }
+        };
+
+        ensureBagGrid();
+
+		const max = (inventory && inventory._serverMode) ? (inventory.maxSlots || 20) : (inventory._legacyMaxSlots || 4);
+        for (let i = 0; i < max; i++) {
+            const el = grid.children[i];
+            if (!el) continue;
+            const iconEl = el.querySelector('.profile-slot-icon');
+            const qtyEl = el.querySelector('.profile-slot-qty');
+
+			const slotData = inventory?._serverMode ? (inventory.slots?.[i] || null) : null;
+			const itemId = slotData?.itemId || (inventory?.items ? inventory.items[i] : null);
+			const qty = slotData?.quantity || (itemId ? 1 : 0);
+
+            if (itemId) {
+                const def = ITEMS[itemId] || {};
+                if (iconEl) iconEl.textContent = def.icon || '';
+                if (qtyEl) qtyEl.textContent = (qty && qty > 1) ? String(qty) : '';
+                el.className = `profile-slot rarity-${def.rarity || 'common'}`;
+                el.title = `${def.name || itemId}\n${def.description || ''}`.trim();
             } else {
                 if (iconEl) iconEl.textContent = '';
-                slot.className = 'profile-slot empty';
-                slot.title = 'Emplacement vide';
+                if (qtyEl) qtyEl.textContent = '';
+                el.className = 'profile-slot empty';
+                el.title = 'Emplacement vide';
             }
         }
     }
+
+
+    // Expose for WS-driven refreshes
+    window.updateProfilePanel = updateProfilePanel;
+
 
     // ============================================
     // Chat
@@ -758,18 +904,88 @@
     // Toasts
     // ============================================
     
-    function showToast(message, type = '') {
+    function showToast(message, typeOrOpts = '', maybeOpts = null) {
+        // Robust anti-spam + dedupe:
+        // - case-insensitive
+        // - digits normalized ("1s" == "2s")
+        // - per message + per slot
+        // - update existing toast instead of stacking
+        // Backward compatible signature: (message, type) OR (message, type, opts) OR (message, opts)
+        let type = '';
+        let opts = {};
+        if (typeOrOpts && typeof typeOrOpts === 'object') {
+            opts = typeOrOpts;
+        } else {
+            type = typeOrOpts || '';
+            if (maybeOpts && typeof maybeOpts === 'object') opts = maybeOpts;
+        }
+
+        const raw = String(message || '').trim();
+        if (!raw) return;
+
+        window._toastSpamGuard = window._toastSpamGuard || {};
+        window._toastInstances = window._toastInstances || {};
+        const now = Date.now();
+        const slot = (opts && typeof opts.slot === 'number') ? opts.slot : null;
+
+        const norm = raw
+            .toLowerCase()
+            .replace(/\s+/g, ' ')
+            .replace(/[0-9]+/g, '#');
+
+        // Throttle rules
+        let delay = (opts && typeof opts.throttleMs === 'number') ? opts.throttleMs : 0;
+        if (!delay) {
+            // Always have a small global throttle to prevent floods
+            delay = 450;
+            if (norm.includes('inventaire plein')) delay = Math.max(delay, 1500);
+            if (norm.includes('recharge') || norm.includes('cooldown') || norm.startsWith('⏳')) delay = Math.max(delay, 1200);
+            if (norm.includes('impossible') || norm.includes('ramasser') || norm.includes('loot')) delay = Math.max(delay, 1200);
+            // Server announcements can spam if resent -> clamp hard
+            if (norm.includes('élite') || norm.includes('boss') || norm.includes('repéré') || norm.includes('apparaît')) delay = Math.max(delay, 6000);
+            if (norm.includes('nouveau compagnon')) delay = Math.max(delay, 4000);
+        }
+
+        const guardKey = `msg:${norm}|slot:${slot !== null ? slot : 'any'}`;
+        const last = window._toastSpamGuard[guardKey] || 0;
+        if (delay > 0 && (now - last < delay)) return;
+        window._toastSpamGuard[guardKey] = now;
+
+        // Dedupe key: same normalized message + slot + type
+        const dedupeKey = `${guardKey}|type:${(type || 'default').toLowerCase()}`;
+        const existing = window._toastInstances[dedupeKey];
+        if (existing && existing.el && existing.el.parentNode) {
+            existing.el.textContent = raw;
+            if (existing.timer) clearTimeout(existing.timer);
+            existing.timer = setTimeout(() => {
+                try {
+                    if (existing.el && existing.el.parentNode) existing.el.parentNode.removeChild(existing.el);
+                } catch (e) {}
+                delete window._toastInstances[dedupeKey];
+            }, CONFIG.toastDuration);
+            return;
+        }
+
         const toast = document.createElement('div');
         toast.className = 'toast' + (type ? ' ' + type : '');
-        toast.textContent = message;
-        
+        toast.textContent = raw;
+
         dom.toastContainer.appendChild(toast);
-        
-        setTimeout(() => {
+
+        // Limit visible toasts (prevents huge stacks on iPhone)
+        const maxVisible = (state && (state.isMobile || state.isTouch)) ? 3 : 5;
+        while (dom.toastContainer.childElementCount > maxVisible) {
+            dom.toastContainer.removeChild(dom.toastContainer.firstElementChild);
+        }
+
+        const timer = setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
             }
+            delete window._toastInstances[dedupeKey];
         }, CONFIG.toastDuration);
+
+        window._toastInstances[dedupeKey] = { el: toast, timer };
     }
 
     // Global function
@@ -980,17 +1196,121 @@
         }
     }
 
-    function triggerBoost() {
-        if (state.app && state.app.model) {
-            const now = Date.now();
-            if (!state.app.model.boostCooldownUntil || now > state.app.model.boostCooldownUntil) {
-                state.app.model.boostUntil = now + CONFIG.boostDuration;
-                state.app.model.boostCooldownUntil = now + CONFIG.boostCooldown;
-                dom.boostBtn.classList.add('cooldown');
-                setTimeout(() => {
-                    dom.boostBtn.classList.remove('cooldown');
-                }, CONFIG.boostCooldown);
+    
+    // ============================================
+    // Wild Rift - Full Mobile Controls
+    // ============================================
+
+    function initWildRiftControls() {
+        const root = document.getElementById('wr-controls');
+        if (!root) return;
+
+        // Show on touch devices only
+        if (state.isMobile || state.isTouch) {
+            root.classList.remove('hidden');
+            root.setAttribute('aria-hidden', 'false');
+        } else {
+            root.classList.add('hidden');
+            root.setAttribute('aria-hidden', 'true');
+            return;
+        }
+
+        const btnAttack = document.getElementById('wr-attack');
+        const btnInv = document.getElementById('wr-inventory');
+        const btnComp = document.getElementById('wr-companion');
+        const btnPvp = document.getElementById('wr-pvp');
+
+        // Prevent long-press selection/context menu
+        ['contextmenu'].forEach((ev) => {
+            root.addEventListener(ev, (e) => { e.preventDefault(); }, { passive: false });
+        });
+
+        const fire = (fn) => (e) => {
+            try { e.preventDefault(); e.stopPropagation(); } catch (_) {}
+            if (window.inputState && window.inputState.isDead) return;
+            fn && fn();
+        };
+
+        const triggerMelee = () => {
+            if (window.webSocketService?.sendMelee) {
+                window.webSocketService.sendMelee();
+                // Optimistic local cooldown display (server will confirm with melee_result)
+                const now = Date.now();
+                const cd = (window.GameSystems && window.GameSystems.gameState && window.GameSystems.gameState.meleeCooldownMs) ? window.GameSystems.gameState.meleeCooldownMs : 750;
+                if (window.GameSystems?.gameState) window.GameSystems.gameState.meleeCooldownUntil = now + cd;
             }
+        };
+
+        if (btnAttack) {
+            btnAttack.addEventListener('touchstart', fire(triggerMelee), { passive: false });
+            btnAttack.addEventListener('click', fire(triggerMelee));
+        }
+
+        // Inventory button (opens the profile/inventory panel)
+        if (btnInv) {
+            btnInv.addEventListener('touchstart', fire(() => { if (dom.profilePanel) togglePanel(dom.profilePanel); }), { passive: false });
+            btnInv.addEventListener('click', fire(() => { if (dom.profilePanel) togglePanel(dom.profilePanel); }));
+        }
+
+        // Spell buttons (A/Z/E/R)
+        for (let i = 0; i < 4; i++) {
+            const el = document.getElementById(`wr-slot-${i}`);
+            if (!el) continue;
+
+            const useSlot = () => {
+                window.GameSystems?.inventory?.useItem(i, window.GameSystems.playerStats, window.GameSystems.gameState);
+            };
+
+            el.addEventListener('touchstart', fire(useSlot), { passive: false });
+            el.addEventListener('click', fire(useSlot));
+        }
+
+        // Companion button (B): trigger the companion spell if equipped, else do nothing
+        const triggerCompanion = () => {
+            const spells = window.GameSystems?.equippedSpells;
+            if (!Array.isArray(spells)) return;
+            for (let si = 0; si < Math.min(4, spells.length); si++) {
+                const s = spells[si];
+                const id = s && (s.id || s.itemId || s.spellId);
+                if (id === 'spell_companion') {
+                    window.GameSystems?.inventory?.useItem(si, window.GameSystems.playerStats, window.GameSystems.gameState);
+                    break;
+                }
+            }
+        };
+        if (btnComp) {
+            btnComp.addEventListener('touchstart', fire(triggerCompanion), { passive: false });
+            btnComp.addEventListener('click', fire(triggerCompanion));
+        }
+
+        // PvP toggle button
+        if (btnPvp) {
+            btnPvp.addEventListener('touchstart', fire(() => {
+                if (window.GameSystems?.combat) {
+                    window.GameSystems.combat.togglePvP();
+                    btnPvp.classList.toggle('active', window.GameSystems.combat.pvpEnabled);
+                    if (state.app && typeof state.app.setPvpEnabled === 'function') {
+                        state.app.setPvpEnabled(window.GameSystems.combat.pvpEnabled);
+                    }
+                }
+            }), { passive: false });
+
+            btnPvp.addEventListener('click', fire(() => {
+                if (window.GameSystems?.combat) {
+                    window.GameSystems.combat.togglePvP();
+                    btnPvp.classList.toggle('active', window.GameSystems.combat.pvpEnabled);
+                    if (state.app && typeof state.app.setPvpEnabled === 'function') {
+                        state.app.setPvpEnabled(window.GameSystems.combat.pvpEnabled);
+                    }
+                }
+            }));
+        }
+    }
+
+function triggerBoost() {
+        // Server-authoritative: slot R (index 3) is triggered by Space and the mobile button
+        if (window.GameSystems && window.GameSystems.inventory) {
+            window.GameSystems.inventory.useItem(3, window.GameSystems.playerStats, window.GameSystems.gameState);
         }
     }
 
@@ -1004,9 +1324,21 @@
         const now = Date.now();
         const model = state.app.model;
         
-        if (model.boostCooldownUntil && now < model.boostCooldownUntil) {
-            const remaining = model.boostCooldownUntil - now;
-            const progress = 1 - (remaining / CONFIG.boostCooldown);
+        // Prefer the authoritative server cooldown (boost_state), fallback to local slot R cooldown
+        const localCooldownEnd = window.GameSystems?.gameState?.spell_cooldown_3 || 0;
+        const end = Math.max(model.boostCooldownUntil || 0, localCooldownEnd);
+
+        // Duration guess from the equipped spell in slot R, fallback to CONFIG.boostCooldown
+        let duration = CONFIG.boostCooldown;
+        const spells = window.GameSystems?.equippedSpells;
+        const s = Array.isArray(spells) ? spells[3] : null;
+        const spellId = s && (s.id || s.itemId || s.spellId);
+        const def = spellId && window.GameSystems?.ITEMS ? window.GameSystems.ITEMS[spellId] : null;
+        if (def && typeof def.cooldown === 'number' && def.cooldown > 0) duration = def.cooldown;
+
+        if (end && now < end) {
+            const remaining = end - now;
+            const progress = 1 - (remaining / duration);
             dom.boostFill.style.width = (progress * 100) + '%';
             dom.boostFill.classList.add('recharging');
         } else {
@@ -1347,6 +1679,15 @@
     // ============================================
     
     function setupEventListeners() {
+        // iOS Safari: hide the fullscreen button (not supported; users should Add to Home Screen)
+        try {
+            if (isIOSLike() || !fullscreenSupported()) {
+                dom.fullscreenBtn?.classList.add('hidden');
+                const menuFs = document.getElementById('menu-fullscreen');
+                if (menuFs) menuFs.style.display = 'none';
+            }
+        } catch (e) {}
+
         // Resize handling
         window.addEventListener('resize', debounce(() => {
             setVH();
@@ -1624,7 +1965,8 @@
         }
         
         // Update inventory slots
-        for (let i = 0; i < 3; i++) {
+        const hotbarSlots = window.GameSystems?.inventory?.hotbarSlots || 4;
+        for (let i = 0; i < hotbarSlots; i++) {
             const slot = document.getElementById(`inv-slot-${i}`);
             const icon = document.getElementById(`slot-icon-${i}`);
             const cooldown = document.getElementById(`slot-cooldown-${i}`);
@@ -1662,6 +2004,60 @@
             }
         }
         
+        
+        // Mirror hotbar to Wild Rift mobile controls (WR slots)
+        for (let i = 0; i < hotbarSlots; i++) {
+            const btn = document.getElementById(`wr-slot-${i}`);
+            const icon = document.getElementById(`wr-slot-icon-${i}`);
+            const cd = document.getElementById(`wr-slot-cd-${i}`);
+            if (!btn || !icon || !cd) continue;
+
+            const item = inventory.getItem(i);
+            if (item) {
+                icon.textContent = item.icon;
+                btn.classList.remove('empty');
+                btn.title = `${item.name}\n${item.description}`;
+                // Cooldown for spells
+                if (item.type === 'spell') {
+                    const cooldownKey = `spell_cooldown_${i}`;
+                    const cooldownEnd = gameState[cooldownKey] || 0;
+                    if (now < cooldownEnd) {
+                        const remaining = cooldownEnd - now;
+                        const percent = (remaining / item.cooldown) * 100;
+                        cd.style.height = percent + '%';
+                        btn.classList.add('on-cooldown');
+                    } else {
+                        cd.style.height = '0%';
+                        btn.classList.remove('on-cooldown');
+                    }
+                } else {
+                    cd.style.height = '0%';
+                    btn.classList.remove('on-cooldown');
+                }
+            } else {
+                icon.textContent = '';
+                btn.classList.add('empty');
+                btn.title = 'Slot vide';
+                cd.style.height = '0%';
+                btn.classList.remove('on-cooldown');
+            }
+        }
+
+        // Attack button cooldown (server-authoritative when possible)
+        const attackCdEl = document.getElementById('wr-attack-cd');
+        if (attackCdEl) {
+            const meleeEnd = gameState.meleeCooldownUntil || 0;
+            const meleeMs = gameState.meleeCooldownMs || 750;
+            if (meleeEnd && now < meleeEnd) {
+                const remaining = meleeEnd - now;
+                const percent = (remaining / meleeMs) * 100;
+                attackCdEl.style.height = percent + '%';
+            } else {
+                attackCdEl.style.height = '0%';
+            }
+        }
+
+
         // Update active quest
         const questManager = window.GameSystems.questManager;
         if (questManager.activeQuests.length > 0) {
@@ -1686,10 +2082,57 @@
     
     // Initialize inventory slot click handlers
     function initInventoryHandlers() {
-        for (let i = 0; i < 3; i++) {
+        const hotbarSlots = window.GameSystems?.inventory?.hotbarSlots || 4;
+        for (let i = 0; i < hotbarSlots; i++) {
             const slot = document.getElementById(`inv-slot-${i}`);
             if (slot) {
-                slot.addEventListener('click', () => {
+				// Touch-friendly (avoid 300ms delay and double-trigger)
+				slot.addEventListener('touchstart', (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					slot._lastTouchAt = Date.now();
+					// Spell equip mode: tap a hotbar slot after selecting a spell in the bag
+					if (window.uiState && window.uiState.pendingEquipSpellId && window.webSocketService?.sendSpellEquip) {
+						const spellId = window.uiState.pendingEquipSpellId;
+						window.webSocketService.sendSpellEquip(spellId, i);
+						if (window.uiState._pendingBagEl) window.uiState._pendingBagEl.classList.remove('selected');
+						window.uiState.pendingEquipSpellId = null;
+						window.uiState.pendingEquipFromInvSlot = null;
+						window.uiState._pendingBagEl = null;
+						showToast('✅ Sort équipé', 'success');
+						updateGameSystemsUI();
+						updateProfilePanel();
+						return;
+					}
+					if (window.GameSystems) {
+						if (window.inputState && window.inputState.isDropping) {
+							if (window.GameSystems.inventory.dropItem(i, state.app?.model)) {
+								updateGameSystemsUI();
+							}
+							window.inputState.isDropping = false;
+							slot.classList.remove('dropping');
+							return;
+						}
+						window.GameSystems.inventory.useItem(i, window.GameSystems.playerStats, window.GameSystems.gameState);
+					}
+				}, { passive: false });
+
+				slot.addEventListener('click', (e) => {
+					if (slot._lastTouchAt && (Date.now() - slot._lastTouchAt) < 450) return;
+					// Spell equip mode: tap a hotbar slot after selecting a spell in the bag
+					if (window.uiState && window.uiState.pendingEquipSpellId && window.webSocketService?.sendSpellEquip) {
+						e.preventDefault();
+						const spellId = window.uiState.pendingEquipSpellId;
+						window.webSocketService.sendSpellEquip(spellId, i);
+						if (window.uiState._pendingBagEl) window.uiState._pendingBagEl.classList.remove('selected');
+						window.uiState.pendingEquipSpellId = null;
+						window.uiState.pendingEquipFromInvSlot = null;
+						window.uiState._pendingBagEl = null;
+						showToast('✅ Sort équipé', 'success');
+						updateGameSystemsUI();
+						updateProfilePanel();
+						return;
+					}
                     if (window.GameSystems) {
                         if (window.inputState && window.inputState.isDropping) {
                             if (window.GameSystems.inventory.dropItem(i, state.app?.model)) {
@@ -1711,7 +2154,7 @@
             }
         }
         
-        // Keyboard shortcuts for inventory
+        // Keyboard shortcuts for hotbar (AZER only) + inventory (I) + companion (B)
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (e.key === 'Shift') {
@@ -1722,12 +2165,36 @@
                 });
             }
             
-            if (e.key === '1') {
+            const key = String(e.key || '').toLowerCase();
+            // Slot R is also triggered by Space
+            if (key === 'a') {
                 window.GameSystems?.inventory.useItem(0, window.GameSystems.playerStats, window.GameSystems.gameState);
-            } else if (e.key === '2') {
+            } else if (key === 'z') {
                 window.GameSystems?.inventory.useItem(1, window.GameSystems.playerStats, window.GameSystems.gameState);
-            } else if (e.key === '3') {
+            } else if (key === 'e') {
                 window.GameSystems?.inventory.useItem(2, window.GameSystems.playerStats, window.GameSystems.gameState);
+            } else if (key === 'r' || e.code === 'Space') {
+                if (e.code === 'Space') e.preventDefault();
+                window.GameSystems?.inventory.useItem(3, window.GameSystems.playerStats, window.GameSystems.gameState);
+            } else if (key === 'i') {
+                // Open inventory/profile panel
+                if (dom.profilePanel) {
+                    e.preventDefault();
+                    togglePanel(dom.profilePanel);
+                }
+            } else if (key === 'b') {
+                // Companion command spell (if equipped in any slot)
+                const spells = window.GameSystems?.equippedSpells;
+                if (Array.isArray(spells)) {
+                    for (let si = 0; si < Math.min(4, spells.length); si++) {
+                        const s = spells[si];
+                        const id = s && (s.id || s.itemId || s.spellId);
+                        if (id === 'spell_companion') {
+                            window.GameSystems?.inventory.useItem(si, window.GameSystems.playerStats, window.GameSystems.gameState);
+                            break;
+                        }
+                    }
+                }
             }
         });
 
@@ -1745,9 +2212,12 @@
         const pvpToggle = document.getElementById('pvp-toggle');
         if (pvpToggle) {
             pvpToggle.addEventListener('click', () => {
-                if (window.GameSystems) {
+                if (window.GameSystems && window.GameSystems.combat) {
                     window.GameSystems.combat.togglePvP();
                     pvpToggle.classList.toggle('active', window.GameSystems.combat.pvpEnabled);
+                    if (state.app && typeof state.app.setPvpEnabled === 'function') {
+                        state.app.setPvpEnabled(window.GameSystems.combat.pvpEnabled);
+                    }
                 }
             });
         }
@@ -2007,6 +2477,11 @@
         // Detect device type
         state.isMobile = isMobileDevice();
         state.isTouch = 'ontouchstart' in window;
+        try {
+            if (state.isMobile || state.isTouch) {
+                document.body.classList.add('wr-mobile');
+            }
+        } catch (e) {}
         
         // Set viewport height
         setVH();
@@ -2042,8 +2517,9 @@
         }
         
         // Initialize mobile controls
-        if (state.isMobile) {
+        if (state.isMobile || state.isTouch) {
             initVirtualJoystick();
+            initWildRiftControls();
         }
         
         // Prevent body scroll on mobile

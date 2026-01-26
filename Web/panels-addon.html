@@ -1,0 +1,283 @@
+<!-- 
+    ZeroTadpole - Panneaux additionnels
+    Ajouter ce contenu dans index.html avant la fermeture de #game-ui 
+-->
+
+<!-- Panel Arène (PNJ Gladius) -->
+<div id="arena-panel" class="panel hidden" aria-hidden="true">
+    <div class="panel-header arena-header">
+        <h2>⚔️ Arène de Combat</h2>
+        <button class="panel-close" aria-label="Fermer">×</button>
+    </div>
+    <div class="panel-content">
+        <div class="npc-dialogue arena-dialogue">
+            <div class="npc-avatar arena-avatar">🗡️</div>
+            <div class="npc-speech">
+                <span class="npc-name">Gladius</span>
+                <p id="arena-npc-text">Bienvenue dans l'Arène, guerrier ! Choisis ton mode de combat !</p>
+            </div>
+        </div>
+        
+        <div class="arena-modes">
+            <button class="arena-mode-btn" data-mode="arena_1v1">
+                <div class="mode-icon">🗡️</div>
+                <div class="mode-info">
+                    <span class="mode-name">Duel 1v1</span>
+                    <span class="mode-desc">Affronte un adversaire en face à face</span>
+                    <span class="mode-reward">💎 3 gemmes</span>
+                </div>
+                <span class="mode-players">2 joueurs</span>
+            </button>
+            
+            <button class="arena-mode-btn" data-mode="arena_2v2">
+                <div class="mode-icon">⚔️</div>
+                <div class="mode-info">
+                    <span class="mode-name">Combat 2v2</span>
+                    <span class="mode-desc">Forme une équipe et battez-vous</span>
+                    <span class="mode-reward">💎 5 gemmes</span>
+                </div>
+                <span class="mode-players">4 joueurs</span>
+            </button>
+            
+            <button class="arena-mode-btn" data-mode="arena_ffa">
+                <div class="mode-icon">👊</div>
+                <div class="mode-info">
+                    <span class="mode-name">Mêlée Générale</span>
+                    <span class="mode-desc">Tous contre tous, le dernier debout gagne</span>
+                    <span class="mode-reward">💎 2 gemmes</span>
+                </div>
+                <span class="mode-players">3-8 joueurs</span>
+            </button>
+        </div>
+        
+        <div class="arena-queue" id="arena-queue" style="display: none;">
+            <div class="queue-status">
+                <div class="queue-spinner"></div>
+                <span id="queue-text">Recherche d'adversaires...</span>
+            </div>
+            <button class="btn-cancel" id="cancel-queue">Annuler</button>
+        </div>
+        
+        <div class="arena-rankings">
+            <h4>🏆 Classement Arène</h4>
+            <div class="rankings-list" id="arena-rankings-list">
+                <div class="ranking-empty">Aucun classement disponible</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Panel Instances (PNJ Coralia) -->
+<div id="instance-panel" class="panel hidden" aria-hidden="true">
+    <div class="panel-header instance-header">
+        <h2>🌀 Portails Dimensionnels</h2>
+        <button class="panel-close" aria-label="Fermer">×</button>
+    </div>
+    <div class="panel-content">
+        <div class="npc-dialogue instance-dialogue">
+            <div class="npc-avatar instance-avatar">🔮</div>
+            <div class="npc-speech">
+                <span class="npc-name">Coralia</span>
+                <p id="instance-npc-text">Les portails vers les profondeurs t'attendent, aventurier...</p>
+            </div>
+        </div>
+        
+        <div class="instance-tabs">
+            <button class="instance-tab active" data-tab="dungeons">🏰 Donjons</button>
+            <button class="instance-tab" data-tab="raids">🐉 Raids</button>
+            <button class="instance-tab" data-tab="active">📋 En cours</button>
+        </div>
+        
+        <div class="instance-content" id="dungeons-content">
+            <div class="instance-list">
+                <div class="instance-card" data-instance="dungeon_easy">
+                    <div class="instance-icon">🦀</div>
+                    <div class="instance-info">
+                        <span class="instance-name">Grotte des Crabes</span>
+                        <span class="instance-level">Niveau 1-10</span>
+                        <span class="instance-desc">Donjon facile - Idéal pour débuter</span>
+                    </div>
+                    <div class="instance-meta">
+                        <span class="instance-players">1-4 joueurs</span>
+                        <span class="instance-reward">💎 5 | ⭐ 200 XP</span>
+                    </div>
+                    <button class="btn-enter">Entrer</button>
+                </div>
+                
+                <div class="instance-card" data-instance="dungeon_medium">
+                    <div class="instance-icon">🐙</div>
+                    <div class="instance-info">
+                        <span class="instance-name">Antre du Poulpe</span>
+                        <span class="instance-level">Niveau 10-20</span>
+                        <span class="instance-desc">Donjon moyen - Pour les courageux</span>
+                    </div>
+                    <div class="instance-meta">
+                        <span class="instance-players">2-4 joueurs</span>
+                        <span class="instance-reward">💎 10 | ⭐ 500 XP</span>
+                    </div>
+                    <button class="btn-enter">Entrer</button>
+                </div>
+                
+                <div class="instance-card" data-instance="dungeon_hard">
+                    <div class="instance-icon">🌊</div>
+                    <div class="instance-info">
+                        <span class="instance-name">Abysses Profondes</span>
+                        <span class="instance-level">Niveau 20+</span>
+                        <span class="instance-desc">Donjon difficile - Réservé aux experts</span>
+                    </div>
+                    <div class="instance-meta">
+                        <span class="instance-players">3-4 joueurs</span>
+                        <span class="instance-reward">💎 20 | ⭐ 1000 XP</span>
+                    </div>
+                    <button class="btn-enter">Entrer</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instance-content hidden" id="raids-content">
+            <div class="instance-list">
+                <div class="instance-card raid-card" data-instance="raid">
+                    <div class="instance-icon">🐉</div>
+                    <div class="instance-info">
+                        <span class="instance-name">Raid: Léviathan</span>
+                        <span class="instance-level">Niveau 20+ requis</span>
+                        <span class="instance-desc">Raid épique - Rassemble 8 héros pour affronter le titan !</span>
+                    </div>
+                    <div class="instance-meta">
+                        <span class="instance-players">6-8 joueurs</span>
+                        <span class="instance-reward">💎 50 | ⭐ 2500 XP</span>
+                    </div>
+                    <button class="btn-enter btn-raid">Créer groupe</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instance-content hidden" id="active-content">
+            <div class="active-instances" id="active-instances-list">
+                <div class="no-active">
+                    <span>Aucune instance en cours</span>
+                    <p>Rejoins un donjon ou crée un groupe de raid !</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Panel de groupe (pour rejoindre/créer instances) -->
+<div id="group-panel" class="panel hidden" aria-hidden="true">
+    <div class="panel-header">
+        <h2>👥 Mon Groupe</h2>
+        <button class="panel-close" aria-label="Fermer">×</button>
+    </div>
+    <div class="panel-content">
+        <div class="group-info" id="group-info">
+            <div class="group-instance">
+                <span class="group-instance-icon" id="group-instance-icon">🏰</span>
+                <span class="group-instance-name" id="group-instance-name">-</span>
+            </div>
+            
+            <div class="group-members" id="group-members">
+                <div class="member-slot empty">
+                    <span class="member-icon">+</span>
+                    <span class="member-name">Vide</span>
+                </div>
+            </div>
+            
+            <div class="group-actions">
+                <button class="btn-action" id="invite-btn">📨 Inviter</button>
+                <button class="btn-action btn-danger" id="leave-group-btn">🚪 Quitter</button>
+            </div>
+        </div>
+        
+        <div class="no-group" id="no-group">
+            <p>Tu n'es dans aucun groupe actuellement.</p>
+            <button class="btn-primary" id="create-group-btn">Créer un groupe</button>
+        </div>
+    </div>
+</div>
+
+<!-- Notification de loot améliorée -->
+<div id="loot-notification" class="loot-notif hidden">
+    <div class="loot-notif-content">
+        <span class="loot-notif-icon" id="loot-notif-icon">🎁</span>
+        <div class="loot-notif-info">
+            <span class="loot-notif-name" id="loot-notif-name">Item</span>
+            <span class="loot-notif-quality" id="loot-notif-quality">Commun</span>
+        </div>
+    </div>
+</div>
+
+<!-- HUD d'instance (affiché quand en instance) -->
+<div id="instance-hud" class="hidden">
+    <div class="instance-hud-header">
+        <span class="instance-hud-icon" id="instance-hud-icon">🏰</span>
+        <span class="instance-hud-name" id="instance-hud-name">Donjon</span>
+        <span class="instance-hud-timer" id="instance-hud-timer">10:00</span>
+    </div>
+    <div class="instance-hud-objectives">
+        <span id="instance-objective">Éliminer tous les ennemis</span>
+        <div class="instance-progress">
+            <div class="instance-progress-fill" id="instance-progress-fill"></div>
+        </div>
+        <span id="instance-progress-text">0/15 mobs</span>
+    </div>
+    <button class="btn-leave-instance" id="leave-instance-btn">🚪 Quitter</button>
+</div>
+
+<!-- Boss HP Bar (pour boss/élite) -->
+<div id="boss-healthbar" class="hidden">
+    <div class="boss-info">
+        <span class="boss-icon" id="boss-icon">🐙</span>
+        <span class="boss-name" id="boss-name">Boss</span>
+    </div>
+    <div class="boss-hp-track">
+        <div class="boss-hp-fill" id="boss-hp-fill"></div>
+    </div>
+    <span class="boss-hp-text" id="boss-hp-text">100%</span>
+</div>
+
+<!-- Écran de mort amélioré -->
+<div id="death-screen" class="hidden">
+    <div class="death-overlay"></div>
+    <div class="death-content">
+        <div class="death-icon">💀</div>
+        <h2>Tu as été vaincu !</h2>
+        <p class="death-reason" id="death-reason">Tué par un ennemi</p>
+        <div class="death-stats">
+            <div class="death-stat">
+                <span class="death-stat-label">Score</span>
+                <span class="death-stat-value" id="death-score">0</span>
+            </div>
+            <div class="death-stat">
+                <span class="death-stat-label">Kills</span>
+                <span class="death-stat-value" id="death-kills">0</span>
+            </div>
+            <div class="death-stat">
+                <span class="death-stat-label">Temps survécu</span>
+                <span class="death-stat-value" id="death-time">0:00</span>
+            </div>
+        </div>
+        <div class="death-timer">
+            <span>Réapparition dans </span>
+            <span id="respawn-timer">3</span>
+            <span>s...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Minimap -->
+<div id="minimap">
+    <canvas id="minimap-canvas" width="120" height="120"></canvas>
+    <div class="minimap-legend">
+        <span class="legend-item player">● Toi</span>
+        <span class="legend-item enemy">● Ennemi</span>
+        <span class="legend-item npc">● PNJ</span>
+    </div>
+</div>
+
+<!-- Scripts additionnels (à ajouter après les autres scripts) -->
+<!--
+<script src="/js/MobRenderer.js"></script>
+<script src="/js/NPCSystem.js"></script>
+<script src="/js/LootSystem.js"></script>
+-->

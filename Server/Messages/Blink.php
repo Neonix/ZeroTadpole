@@ -23,9 +23,8 @@ class Blink
     
     public function serialize()
     {
-        return array(TYPES_MESSAGES_DESTROY, 
+        return array(TYPES_MESSAGES_BLINK, 
                 $this->entity->id,
         );
     }
 }
-

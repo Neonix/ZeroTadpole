@@ -22,6 +22,11 @@ var App = function(aSettings, aCanvas) {
 			keyNav = {x:0,y:0},
 			messageQuota = 5
 	;
+
+	// Networking throttles (time-based, not frame-based) to reduce perceived latency
+	// while keeping bandwidth under control.
+	app._lastNetSendAt = 0;
+	app._lastNetKeepAliveAt = 0;
 	var scoreEl = document.getElementById('score-value');
 	var questEl = document.getElementById('quest-progress');
 	var boostEl = document.getElementById('boost-status');
@@ -32,6 +37,12 @@ var App = function(aSettings, aCanvas) {
 	  if (messageQuota < 5 && model.userTadpole.age % 50 == 0) { messageQuota++; }
 	  var now = Date.now();
 	  var bonusActive = model.bonusActiveUntil && now < model.bonusActiveUntil;
+	  // Reset hover target each frame; Tadpole.update() will re-set it if needed.
+	  mouse.tadpole = null;
+	  // Always keep a world-space cursor position (used for hover UI, even when moving with arrow keys).
+	  var mvp = getMouseWorldPosition();
+	  mouse.worldx = mvp.x;
+	  mouse.worldy = mvp.y;
 	  if (model.boostUntil && now < model.boostUntil && model.userTadpole.targetMomentum > 0) {
 			model.userTadpole.targetMomentum = model.userTadpole.maxMomentum * 1.8;
 	  } else if (bonusActive && model.userTadpole.targetMomentum > 0) {
@@ -41,26 +52,63 @@ var App = function(aSettings, aCanvas) {
 	  }
 
 		// Update usertadpole
-		if(keyNav.x != 0 || keyNav.y != 0) {
-			model.userTadpole.userUpdate(model.tadpoles, model.userTadpole.x + keyNav.x,model.userTadpole.y + keyNav.y);
-		}
-		else {
-			var mvp = getMouseWorldPosition();
-			mouse.worldx = mvp.x;
-			mouse.worldy = mvp.y;
-			model.userTadpole.userUpdate(model.tadpoles, mouse.worldx, mouse.worldy);
+		if (!window.inputState.isDead) {
+			if(keyNav.x != 0 || keyNav.y != 0) {
+				model.userTadpole.userUpdate(model.tadpoles, model.userTadpole.x + keyNav.x,model.userTadpole.y + keyNav.y);
+			}
+			else {
+				model.userTadpole.userUpdate(model.tadpoles, mouse.worldx, mouse.worldy);
+			}
+		} else if (model.userTadpole) {
+			model.userTadpole.targetMomentum = 0;
 		}
 		
-		if(model.userTadpole.age % 6 == 0 && model.userTadpole.changed > 1 && webSocketService.hasConnection) {
-			model.userTadpole.changed = 0;
-			webSocketService.sendUpdate(model.userTadpole);
+		// Send movement updates at a fixed rate (instead of "age % N")
+		// This improves responsiveness especially at low FPS (e.g. 30fps) and
+		// reduces the "~1s" perceived latency on other clients.
+		if(!window.inputState.isDead && webSocketService.hasConnection && model.userTadpole) {
+			var tNow = (window.performance && performance.now) ? performance.now() : Date.now();
+			var isMoving = (model.userTadpole.targetMomentum > 0.01 || model.userTadpole.momentum > 0.01);
+			var sendInterval = isMoving ? 50 : 200; // 20/s when moving, 5/s when idle
+			var shouldSend = false;
+
+			// Send when we have enough accumulated change
+			if (model.userTadpole.changed > 0.25 && (tNow - app._lastNetSendAt) >= sendInterval) {
+				shouldSend = true;
+			}
+
+			// Keep-alive while moving so other clients stay smooth even when change is small
+			if (!shouldSend && isMoving && (tNow - app._lastNetKeepAliveAt) >= 120) {
+				shouldSend = true;
+			}
+
+			if (shouldSend) {
+				model.userTadpole.changed = 0;
+				webSocketService.sendUpdate(model.userTadpole);
+				app._lastNetSendAt = tNow;
+				app._lastNetKeepAliveAt = tNow;
+			}
 		}
 		
 		model.camera.update(model);
 		
 		// Update tadpoles
 		for(id in model.tadpoles) {
-			model.tadpoles[id].update(mouse, model);
+			var tp = model.tadpoles[id];
+			if (!tp || typeof tp.update !== 'function') { continue; }
+			tp.update(mouse, model);
+		}
+
+		// Hover (creatures only): show cursor as a hand and enable nameplates on mouseover.
+		var hoverMob = false;
+		try {
+			if (window.GameSystems && window.GameSystems.combat && typeof window.GameSystems.combat.updateHover === 'function') {
+				hoverMob = window.GameSystems.combat.updateHover(mouse.worldx, mouse.worldy);
+			}
+		} catch (e) { hoverMob = false; }
+		var hoverNpc = !!(mouse.tadpole && mouse.tadpole.hover && (mouse.tadpole.isNpc || mouse.tadpole.isOvule));
+		if (canvas && canvas.style) {
+			canvas.style.cursor = (hoverMob || hoverNpc) ? 'pointer' : 'default';
 		}
 		
 		// Update waterParticles
@@ -120,7 +168,9 @@ var App = function(aSettings, aCanvas) {
 		
 		// Draw tadpoles
 		for(id in model.tadpoles) {
-			model.tadpoles[id].draw(context);
+			var tp = model.tadpoles[id];
+			if (!tp || typeof tp.draw !== 'function') { continue; }
+			tp.draw(context);
 		}
 		
 		// Start UI layer (reset transform matrix)
@@ -155,8 +205,14 @@ var App = function(aSettings, aCanvas) {
 		try {
 			var data = JSON.parse(e.data);
 			if (Array.isArray(data)) {
-				for (var i = 0; i < data.length; i++) {
-					webSocketService.processMessage(data[i]);
+				var isBatch = data.length
+					&& (Array.isArray(data[0]) || (data[0] && typeof data[0] === 'object' && data[0].type));
+				if (isBatch) {
+					for (var i = 0; i < data.length; i++) {
+						webSocketService.processMessage(data[i]);
+					}
+				} else {
+					webSocketService.processMessage(data);
 				}
 			} else {
 				webSocketService.processMessage(data);
@@ -175,6 +231,8 @@ var App = function(aSettings, aCanvas) {
 		} else {
 			webSocketService.setSocket(webSocket);
 		}
+		// Expose for other modules (inventory/loot/spells)
+		window.webSocketService = webSocketService;
 	};
 	
 	app.sendMessage = function(msg) {
@@ -198,11 +256,22 @@ var App = function(aSettings, aCanvas) {
 		webSocketService.sendPrivateMessage(targetId, message);
 	}
 
+	app.setPvpEnabled = function(enabled) {
+		webSocketService.sendPvpToggle(enabled);
+	}
+
+	app.sendEliteHit = function(mobId, damage) {
+		webSocketService.sendEliteHit(mobId, damage);
+	}
+
 	app.sendSpell = function(spellId, x, y, angle) {
 		webSocketService.sendSpell(spellId, x, y, angle);
 	}
 	
 	app.mousedown = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Ignore if touching UI elements
 		if (e.target && e.target.closest && e.target.closest('#game-ui, .panel, #virtual-joystick, #boost-btn, #chat-container')) {
 			return;
@@ -234,6 +303,9 @@ var App = function(aSettings, aCanvas) {
 	};
 	
 	app.mousemove = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Always update mouse position for direction, even without click
 		mouse.x = e.clientX;
 		mouse.y = e.clientY;
@@ -248,50 +320,50 @@ var App = function(aSettings, aCanvas) {
 	};
 
 	app.keydown = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Don't handle keys if typing in input
 		var targetTag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
 		if (targetTag === 'input' || targetTag === 'textarea') {
 			return;
 		}
 		
-		if(e.keyCode == keys.up || e.keyCode == 87) { // W
+		// Arrow keys only for movement (hotbar uses A/Z/E/R)
+		if(e.keyCode == keys.up) {
 			keyNav.y = -1;
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 			e.preventDefault();
 		}
-		else if(e.keyCode == keys.down || e.keyCode == 83) { // S
+		else if(e.keyCode == keys.down) {
 			keyNav.y = 1;
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 			e.preventDefault();
 		}
 		else if(e.keyCode == keys.space) {
-			var now = Date.now();
-			if (!model.boostCooldownUntil || now > model.boostCooldownUntil) {
-				model.boostUntil = now + 1000;
-				model.boostCooldownUntil = now + 5000;
-			}
+			// Space is handled by the hotbar system (slot R) in game.js; prevent page scroll
 			e.preventDefault();
 		}
-		else if(e.keyCode == keys.left || e.keyCode == 65) { // A
+		else if(e.keyCode == keys.left) {
 			keyNav.x = -1;
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 			e.preventDefault();
 		}
-		else if(e.keyCode == keys.right || e.keyCode == 68) { // D
+		else if(e.keyCode == keys.right) {
 			keyNav.x = 1;
 			model.userTadpole.momentum = model.userTadpole.targetMomentum = model.userTadpole.maxMomentum;
 			e.preventDefault();
 		}
 	};
 	app.keyup = function(e) {
-		if(e.keyCode == keys.up || e.keyCode == keys.down || e.keyCode == 87 || e.keyCode == 83) {
+		if(e.keyCode == keys.up || e.keyCode == keys.down) {
 			keyNav.y = 0;
 			if(keyNav.x == 0 && keyNav.y == 0) {
 				model.userTadpole.targetMomentum = 0;
 			}
 			e.preventDefault();
 		}
-		else if(e.keyCode == keys.left || e.keyCode == keys.right || e.keyCode == 65 || e.keyCode == 68) {
+		else if(e.keyCode == keys.left || e.keyCode == keys.right) {
 			keyNav.x = 0;
 			if(keyNav.x == 0 && keyNav.y == 0) {
 				model.userTadpole.targetMomentum = 0;
@@ -301,6 +373,9 @@ var App = function(aSettings, aCanvas) {
 	};
 	
 	app.touchstart = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Don't handle touch if on UI elements (joystick handles its own events)
 		if (e.target && e.target.closest && e.target.closest('#game-ui, .panel, #virtual-joystick, #boost-btn, #chat-container')) {
 			return;
@@ -327,11 +402,17 @@ var App = function(aSettings, aCanvas) {
 		
 		mouse.clicking = false;
 		window.inputState.isMoving = false;
+		// Clear touch cursor position so hover-only labels don't stick on mobile after lifting the finger.
+		mouse.x = -9999;
+		mouse.y = -9999;
 		if(model.userTadpole) {
 			model.userTadpole.targetMomentum = 0;
 		}
 	}
 	app.touchmove = function(e) {
+		if (window.inputState.isDead) {
+			return;
+		}
 		// Don't update if using joystick
 		if (window.inputState.useJoystick) return;
 		

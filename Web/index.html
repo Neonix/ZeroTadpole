@@ -12,12 +12,16 @@
     
     <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
     <link rel="icon" href="/favicon.ico">
+    <link rel="manifest" href="/manifest.json">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="css/game.css">
+    <link rel="stylesheet" href="css/advanced-systems.css">
+    <link rel="stylesheet" href="css/gameui.css">
+    <link rel="stylesheet" href="css/wildrift-controls.css">
 </head>
 <body>
     <!-- Écran de chargement -->
@@ -104,7 +108,7 @@
         <!-- Barre de boost -->
         <div id="boost-bar">
             <div class="boost-fill" id="boost-fill"></div>
-            <span class="boost-label">ESPACE</span>
+            <span class="boost-label">R / ESPACE</span>
         </div>
 
         <!-- Tracker de quête -->
@@ -138,22 +142,27 @@
             </div>
         </div>
 
-        <!-- Inventaire / Sorts (3 slots) -->
+        <!-- Inventaire / Sorts (4 slots) -->
         <div id="inventory-bar">
             <div class="inventory-slot" data-slot="0" id="inv-slot-0">
-                <span class="slot-key">1</span>
+                <span class="slot-key">A</span>
                 <span class="slot-icon" id="slot-icon-0"></span>
                 <div class="slot-cooldown" id="slot-cooldown-0"></div>
             </div>
             <div class="inventory-slot" data-slot="1" id="inv-slot-1">
-                <span class="slot-key">2</span>
+                <span class="slot-key">Z</span>
                 <span class="slot-icon" id="slot-icon-1"></span>
                 <div class="slot-cooldown" id="slot-cooldown-1"></div>
             </div>
             <div class="inventory-slot" data-slot="2" id="inv-slot-2">
-                <span class="slot-key">3</span>
+                <span class="slot-key">E</span>
                 <span class="slot-icon" id="slot-icon-2"></span>
                 <div class="slot-cooldown" id="slot-cooldown-2"></div>
+            </div>
+            <div class="inventory-slot" data-slot="3" id="inv-slot-3">
+                <span class="slot-key">R</span>
+                <span class="slot-icon" id="slot-icon-3"></span>
+                <div class="slot-cooldown" id="slot-cooldown-3"></div>
             </div>
             <button class="pvp-toggle" id="pvp-toggle" title="Activer/Désactiver PvP">⚔️</button>
         </div>
@@ -244,12 +253,18 @@
                         <div class="profile-slot" id="profile-slot-2">
                             <span class="profile-slot-icon"></span>
                         </div>
+                        <div class="profile-slot" id="profile-slot-3">
+                            <span class="profile-slot-icon"></span>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="profile-name">Nom du têtard</label>
-                    <input type="text" id="profile-name" maxlength="16" placeholder="Ton pseudo..." autocomplete="off">
+                    <label>Nom du têtard</label>
+                    <div class="profile-name-display">
+                        <span>Mon têtard - </span>
+                        <span id="profile-name-display"></span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Couleur</label>
@@ -281,12 +296,20 @@
                             <span>Nager (maintenir)</span>
                         </div>
                         <div class="help-item">
-                            <span class="key">Espace</span>
-                            <span>Boost de vitesse</span>
+                            <span class="key">R / Espace</span>
+                            <span>Sort du slot R (dash par défaut)</span>
                         </div>
                         <div class="help-item">
-                            <span class="key">1, 2, 3</span>
-                            <span>Utiliser sorts/objets</span>
+                            <span class="key">A, Z, E, R</span>
+                            <span>Utiliser sorts/objets (hotbar 4 slots)</span>
+                        </div>
+                        <div class="help-item">
+                            <span class="key">I</span>
+                            <span>Ouvrir l'inventaire</span>
+                        </div>
+                        <div class="help-item">
+                            <span class="key">B</span>
+                            <span>Commande compagnon (si équipé)</span>
                         </div>
                         <div class="help-item">
                             <span class="key">T / Entrée</span>
@@ -315,7 +338,7 @@
                 <div class="help-section">
                     <h3>🎒 Inventaire</h3>
                     <ul>
-                        <li>Tu as <strong>3 emplacements</strong> pour objets et sorts</li>
+                        <li>Tu as <strong>4 emplacements</strong> pour objets et sorts (A/Z/E/R)</li>
                         <li>Les objets sont obtenus en tuant des monstres ou en achetant chez Ovule</li>
                         <li>Les sorts ont un <strong>temps de recharge</strong> après utilisation</li>
                     </ul>
@@ -490,6 +513,45 @@
             </div>
         </div>
         
+        
+        <!-- Wild Rift - Full Mobile Controls -->
+        <div id="wr-controls" class="wr-controls hidden" aria-hidden="true">
+            <div class="wr-left">
+                <button id="wr-inventory" class="wr-small-btn" aria-label="Inventaire">🎒</button>
+            </div>
+            <div class="wr-right">
+                <div class="wr-cluster">
+                    <button id="wr-attack" class="wr-attack" aria-label="Attaque de base">
+                        <span class="wr-attack-icon">⚔️</span>
+                        <div class="wr-cooldown" id="wr-attack-cd"></div>
+                    </button>
+                    <button class="wr-slot" data-slot="0" id="wr-slot-0" aria-label="Slot A">
+                        <span class="wr-slot-key">A</span>
+                        <span class="wr-slot-icon" id="wr-slot-icon-0"></span>
+                        <div class="wr-cooldown" id="wr-slot-cd-0"></div>
+                    </button>
+                    <button class="wr-slot" data-slot="1" id="wr-slot-1" aria-label="Slot Z">
+                        <span class="wr-slot-key">Z</span>
+                        <span class="wr-slot-icon" id="wr-slot-icon-1"></span>
+                        <div class="wr-cooldown" id="wr-slot-cd-1"></div>
+                    </button>
+                    <button class="wr-slot" data-slot="2" id="wr-slot-2" aria-label="Slot E">
+                        <span class="wr-slot-key">E</span>
+                        <span class="wr-slot-icon" id="wr-slot-icon-2"></span>
+                        <div class="wr-cooldown" id="wr-slot-cd-2"></div>
+                    </button>
+                    <button class="wr-slot wr-slot-r" data-slot="3" id="wr-slot-3" aria-label="Slot R">
+                        <span class="wr-slot-key">R</span>
+                        <span class="wr-slot-icon" id="wr-slot-icon-3"></span>
+                        <div class="wr-cooldown" id="wr-slot-cd-3"></div>
+                    </button>
+                    <button id="wr-companion" class="wr-companion" aria-label="Compagnon (B)">B</button>
+                    <button id="wr-pvp" class="wr-pvp" aria-label="PvP">⚔️</button>
+                </div>
+            </div>
+        </div>
+
+
         <!-- Bouton boost mobile -->
         <button id="boost-btn" class="floating-btn boost-floating hidden" aria-label="Boost">
             <span>⚡</span>
@@ -542,6 +604,8 @@
     <script src="/js/Arrow.js"></script>
     <script src="/js/Cookie.js"></script>
     <script src="/js/GameSystems.js"></script>
+    <script src="/js/AdvancedSystems.js"></script>
+    <script src="/js/GameUI.js"></script>
     <script src="/js/App.js"></script>
     <script src="/js/game.js"></script>
 </body>

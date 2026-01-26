@@ -1,0 +1,963 @@
+/**
+ * ZeroTadpole - CSS Additionnel
+ * Compatibilité mobile optimisée et nouveaux composants
+ */
+
+/* ============================================
+   VARIABLES CSS
+   ============================================ */
+
+:root {
+    /* Thème principal */
+    --color-bg-dark: #0a1628;
+    --color-bg-medium: #112240;
+    --color-bg-light: #1a365d;
+    --color-primary: #8ce6de;
+    --color-secondary: #9ad7ff;
+    --color-accent: #f6d28c;
+    --color-danger: #e74c3c;
+    --color-success: #2ecc71;
+    --color-warning: #f39c12;
+    
+    /* Qualités de loot */
+    --loot-common: #9ad7ff;
+    --loot-uncommon: #7dff7d;
+    --loot-rare: #7d7dff;
+    --loot-epic: #d07dff;
+    --loot-legendary: #ffd700;
+    
+    /* Espacements */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    
+    /* Bordures */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    
+    /* Ombres */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    
+    /* Mobile */
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* ============================================
+   RESET & BASE MOBILE
+   ============================================ */
+
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+}
+
+html, body {
+    overscroll-behavior: none;
+    overflow: hidden;
+    touch-action: none;
+}
+
+body {
+    padding-top: var(--safe-area-top);
+    padding-bottom: var(--safe-area-bottom);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+}
+
+/* ============================================
+   PANNEAUX ARÈNE & INSTANCE
+   ============================================ */
+
+/* Header personnalisé arène */
+.arena-header {
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+}
+
+.instance-header {
+    background: linear-gradient(135deg, #7d3c98, #9b59b6);
+}
+
+/* Dialogue PNJ */
+.npc-dialogue {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.npc-avatar {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, var(--color-bg-light), var(--color-bg-medium));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.arena-avatar {
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+}
+
+.instance-avatar {
+    background: linear-gradient(135deg, #7d3c98, #9b59b6);
+}
+
+.npc-speech {
+    flex: 1;
+}
+
+.npc-name {
+    display: block;
+    font-weight: 700;
+    color: var(--color-accent);
+    margin-bottom: 4px;
+}
+
+.npc-speech p {
+    margin: 0;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.4;
+}
+
+/* Modes d'arène */
+.arena-modes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.arena-mode-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.arena-mode-btn:hover, .arena-mode-btn:active {
+    background: rgba(231, 76, 60, 0.2);
+    border-color: var(--color-danger);
+    transform: translateX(4px);
+}
+
+.mode-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.mode-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mode-name {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.mode-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.mode-reward {
+    font-size: 12px;
+    color: var(--color-accent);
+}
+
+.mode-players {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-sm);
+}
+
+/* Queue d'arène */
+.arena-queue {
+    text-align: center;
+    padding: var(--spacing-lg);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-md);
+}
+
+.queue-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.queue-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--color-danger);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Rankings */
+.arena-rankings {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.arena-rankings h4 {
+    margin: 0 0 var(--spacing-sm);
+    color: var(--color-accent);
+}
+
+.rankings-list {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.ranking-empty {
+    text-align: center;
+    padding: var(--spacing-md);
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Onglets instances */
+.instance-tabs {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
+}
+
+.instance-tab {
+    flex: 1;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 13px;
+}
+
+.instance-tab:hover {
+    background: rgba(155, 89, 182, 0.2);
+}
+
+.instance-tab.active {
+    background: rgba(155, 89, 182, 0.3);
+    border-color: #9b59b6;
+    color: white;
+}
+
+/* Cartes d'instance */
+.instance-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.instance-card {
+    display: grid;
+    grid-template-columns: 50px 1fr auto;
+    gap: var(--spacing-md);
+    align-items: center;
+    padding: var(--spacing-md);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    transition: all 0.3s ease;
+}
+
+.instance-card:hover {
+    background: rgba(155, 89, 182, 0.15);
+    border-color: rgba(155, 89, 182, 0.5);
+}
+
+.raid-card {
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(155, 89, 182, 0.1));
+    border-color: rgba(231, 76, 60, 0.3);
+}
+
+.instance-icon {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, var(--color-bg-light), #9b59b6);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.instance-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.instance-name {
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.instance-level {
+    font-size: 11px;
+    color: var(--loot-uncommon);
+}
+
+.instance-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.instance-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: right;
+    font-size: 11px;
+}
+
+.instance-players {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.instance-reward {
+    color: var(--color-accent);
+}
+
+.btn-enter {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #9b59b6, #7d3c98);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-enter:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+}
+
+.btn-raid {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+/* ============================================
+   HUD INSTANCE
+   ============================================ */
+
+#instance-hud {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(17, 34, 64, 0.95);
+    border: 1px solid rgba(155, 89, 182, 0.5);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    min-width: 250px;
+    z-index: 150;
+}
+
+.instance-hud-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.instance-hud-icon {
+    font-size: 20px;
+}
+
+.instance-hud-name {
+    flex: 1;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.instance-hud-timer {
+    font-family: monospace;
+    font-size: 14px;
+    color: var(--color-warning);
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-sm);
+}
+
+.instance-hud-objectives {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.instance-progress {
+    height: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+    margin: 4px 0;
+    overflow: hidden;
+}
+
+.instance-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.btn-leave-instance {
+    width: 100%;
+    margin-top: var(--spacing-sm);
+    padding: 6px;
+    background: rgba(231, 76, 60, 0.2);
+    border: 1px solid rgba(231, 76, 60, 0.5);
+    border-radius: var(--radius-sm);
+    color: var(--color-danger);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-leave-instance:hover {
+    background: rgba(231, 76, 60, 0.4);
+}
+
+/* ============================================
+   BOSS HEALTH BAR
+   ============================================ */
+
+#boss-healthbar {
+    position: fixed;
+    bottom: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(400px, 90vw);
+    background: rgba(17, 34, 64, 0.95);
+    border: 2px solid var(--color-danger);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    z-index: 160;
+}
+
+.boss-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.boss-icon {
+    font-size: 24px;
+}
+
+.boss-name {
+    flex: 1;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--loot-legendary);
+}
+
+.boss-hp-track {
+    height: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+
+.boss-hp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #e74c3c, #c0392b);
+    border-radius: 6px;
+    width: 100%;
+    transition: width 0.3s ease;
+}
+
+.boss-hp-text {
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 2px;
+}
+
+/* ============================================
+   ÉCRAN DE MORT
+   ============================================ */
+
+#death-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.death-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(139, 0, 0, 0.6);
+    animation: deathPulse 2s ease-in-out infinite;
+}
+
+@keyframes deathPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 0.8; }
+}
+
+.death-content {
+    position: relative;
+    text-align: center;
+    padding: var(--spacing-xl);
+    background: rgba(17, 34, 64, 0.95);
+    border: 2px solid rgba(231, 76, 60, 0.5);
+    border-radius: var(--radius-lg);
+    max-width: 350px;
+    animation: deathAppear 0.5s ease-out;
+}
+
+@keyframes deathAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.death-icon {
+    font-size: 64px;
+    margin-bottom: var(--spacing-md);
+    animation: deathIconBounce 1s ease-in-out infinite;
+}
+
+@keyframes deathIconBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.death-content h2 {
+    margin: 0 0 var(--spacing-sm);
+    color: var(--color-danger);
+}
+
+.death-reason {
+    margin: 0 0 var(--spacing-md);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.death-stats {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-sm);
+}
+
+.death-stat {
+    text-align: center;
+}
+
+.death-stat-label {
+    display: block;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 2px;
+}
+
+.death-stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.death-timer {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.death-timer span:nth-child(2) {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-warning);
+}
+
+/* ============================================
+   MINIMAP
+   ============================================ */
+
+#minimap {
+    position: fixed;
+    bottom: calc(180px + var(--safe-area-bottom));
+    right: calc(var(--spacing-md) + var(--safe-area-right));
+    width: 120px;
+    background: rgba(17, 34, 64, 0.9);
+    border: 1px solid rgba(140, 230, 222, 0.3);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xs);
+    z-index: 100;
+}
+
+#minimap-canvas {
+    display: block;
+    border-radius: var(--radius-sm);
+}
+
+.minimap-legend {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-xs);
+    font-size: 8px;
+}
+
+.legend-item {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.legend-item.player { color: var(--color-primary); }
+.legend-item.enemy { color: var(--color-danger); }
+.legend-item.npc { color: var(--color-accent); }
+
+/* ============================================
+   NOTIFICATION DE LOOT
+   ============================================ */
+
+.loot-notif {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    background: rgba(17, 34, 64, 0.95);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    z-index: 500;
+    animation: lootSlideIn 0.3s ease-out, lootFadeOut 0.3s ease-out 2.7s forwards;
+    pointer-events: none;
+}
+
+@keyframes lootSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes lootFadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(50px);
+    }
+}
+
+.loot-notif-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.loot-notif-icon {
+    font-size: 24px;
+}
+
+.loot-notif-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.loot-notif-name {
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.loot-notif-quality {
+    font-size: 11px;
+    color: var(--loot-common);
+}
+
+.loot-notif-quality.uncommon { color: var(--loot-uncommon); }
+.loot-notif-quality.rare { color: var(--loot-rare); }
+.loot-notif-quality.epic { color: var(--loot-epic); }
+.loot-notif-quality.legendary { color: var(--loot-legendary); }
+
+/* ============================================
+   COMPATIBILITÉ MOBILE
+   ============================================ */
+
+/* iPhone X+ notch handling */
+@supports (padding-top: env(safe-area-inset-top)) {
+    #hud {
+        padding-top: max(var(--spacing-sm), env(safe-area-inset-top));
+    }
+    
+    #inventory-bar {
+        padding-bottom: max(var(--spacing-sm), env(safe-area-inset-bottom));
+    }
+}
+
+/* Petits écrans */
+@media screen and (max-width: 480px) {
+    .panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        border-radius: 0 !important;
+    }
+    
+    .panel-content {
+        padding: var(--spacing-md);
+    }
+    
+    .npc-dialogue {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .npc-avatar {
+        margin: 0 auto;
+    }
+    
+    .arena-mode-btn {
+        flex-wrap: wrap;
+    }
+    
+    .mode-players {
+        width: 100%;
+        text-align: center;
+        margin-top: var(--spacing-xs);
+    }
+    
+    .instance-card {
+        grid-template-columns: 40px 1fr;
+    }
+    
+    .instance-card .btn-enter {
+        grid-column: 1 / -1;
+        margin-top: var(--spacing-sm);
+    }
+    
+    #minimap {
+        width: 80px;
+        bottom: calc(160px + var(--safe-area-bottom));
+    }
+    
+    #minimap-canvas {
+        width: 72px;
+        height: 72px;
+    }
+    
+    .minimap-legend {
+        display: none;
+    }
+    
+    #boss-healthbar {
+        bottom: 120px;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+    
+    .boss-name {
+        font-size: 14px;
+    }
+}
+
+/* Tablettes */
+@media screen and (min-width: 481px) and (max-width: 1024px) {
+    .panel {
+        max-width: 500px;
+    }
+}
+
+/* Mode paysage mobile */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    #hud {
+        padding: var(--spacing-xs) var(--spacing-md);
+    }
+    
+    .hud-stat {
+        padding: var(--spacing-xs);
+    }
+    
+    #quest-tracker {
+        display: none;
+    }
+    
+    #player-health-bar {
+        top: 50px;
+    }
+    
+    #inventory-bar {
+        bottom: 5px;
+    }
+    
+    .inventory-slot {
+        width: 40px;
+        height: 40px;
+    }
+    
+    #virtual-joystick {
+        bottom: 10px;
+        left: 10px;
+        width: 100px;
+        height: 100px;
+    }
+    
+    .panel {
+        max-height: 100vh !important;
+    }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .hud-btn,
+    .inventory-slot,
+    button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .arena-mode-btn,
+    .instance-card {
+        padding: var(--spacing-md);
+    }
+    
+    .panel-close {
+        width: 44px;
+        height: 44px;
+        font-size: 28px;
+    }
+}
+
+/* ============================================
+   ANIMATIONS & TRANSITIONS
+   ============================================ */
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px currentColor; }
+    50% { box-shadow: 0 0 15px currentColor, 0 0 30px currentColor; }
+}
+
+/* Performance optimizations */
+.panel,
+.hud-btn,
+.inventory-slot,
+.toast {
+    will-change: transform, opacity;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ============================================
+   INVENTORY BAG (PROFILE PANEL)
+   - Full server inventory (scrollable grid)
+   - Mobile long-press to drop
+   - Tap spell then tap hotbar to equip
+   ============================================ */
+
+.profile-slots.bag-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    gap: 10px;
+    justify-items: center;
+    max-height: 240px;
+    overflow: auto;
+    padding: 6px 2px;
+}
+
+.profile-slots.bag-grid .profile-slot {
+    width: 52px;
+    height: 52px;
+    position: relative;
+}
+
+.profile-slot-qty {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 0.75rem;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    pointer-events: none;
+}
+
+.profile-slot.selected {
+    outline: 2px solid var(--primary);
+    box-shadow: 0 0 0 3px rgba(140, 230, 222, 0.25);
+}

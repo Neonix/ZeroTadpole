@@ -22,12 +22,12 @@ class Spell
     public function serialize()
     {
         return array(
-            'type' => $this->type,
-            'playerId' => $this->playerId,
-            'spellId' => $this->spellId,
-            'x' => $this->x,
-            'y' => $this->y,
-            'angle' => $this->angle,
+            $this->type,
+            $this->playerId,
+            $this->spellId,
+            $this->x,
+            $this->y,
+            $this->angle,
         );
     }
 }

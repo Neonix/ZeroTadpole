@@ -1,0 +1,181 @@
+/* ============================================
+   Wild Rift - Full Mobile Controls (iOS/Android)
+   ============================================ */
+
+.wr-controls.hidden { display: none !important; }
+
+.wr-controls {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0;
+    pointer-events: none; /* enable only on buttons */
+    z-index: 60;
+}
+
+.wr-controls .wr-left,
+.wr-controls .wr-right {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    pointer-events: none;
+}
+
+.wr-controls .wr-left {
+    left: calc(env(safe-area-inset-left, 0px) + 14px);
+}
+
+.wr-controls .wr-right {
+    right: calc(env(safe-area-inset-right, 0px) + 14px);
+}
+
+.wr-controls button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    pointer-events: auto;
+}
+
+/* Small utility button (inventory) */
+.wr-small-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(10,22,40,0.82);
+    color: #fff;
+    font-size: 22px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+
+/* Right cluster */
+.wr-cluster {
+    position: relative;
+    width: 210px;
+    height: 210px;
+    pointer-events: none;
+}
+
+.wr-attack {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 92px;
+    height: 92px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.20);
+    background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.16), rgba(10,22,40,0.86));
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+.wr-attack:active { transform: scale(0.97); }
+
+.wr-attack-icon {
+    display: block;
+    font-size: 28px;
+    line-height: 92px;
+    text-align: center;
+}
+
+.wr-slot {
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(10,22,40,0.78);
+    color: #fff;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.38);
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+.wr-slot:active { transform: scale(0.97); }
+
+.wr-slot-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+}
+
+.wr-slot-key {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    opacity: 0.9;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.55);
+}
+
+/* Place 4 spells around the attack */
+#wr-slot-0 { right: 102px; bottom: 12px; }
+#wr-slot-1 { right: 62px; bottom: 104px; }
+#wr-slot-2 { right: 142px; bottom: 76px; }
+#wr-slot-3 { right: 0px; bottom: 104px; } /* R above attack */
+
+.wr-companion {
+    position: absolute;
+    right: 160px;
+    bottom: 0px;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(10,22,40,0.82);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 900;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.34);
+    pointer-events: auto;
+}
+
+.wr-pvp {
+    position: absolute;
+    right: 0px;
+    bottom: 200px;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(10,22,40,0.82);
+    color: #fff;
+    font-size: 18px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.34);
+    pointer-events: auto;
+}
+
+.wr-cooldown {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0%;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    pointer-events: none;
+}
+
+/* Enable WR controls only on touch/coarse pointers */
+@media (pointer: coarse), (hover: none) {
+    body.wr-mobile #wr-controls { display: block; }
+    body.wr-mobile #wr-controls.hidden { display: none !important; }
+
+    /* Hide desktop hotbar + boost floating to avoid duplicates */
+    body.wr-mobile #inventory-bar { display: none !important; }
+    body.wr-mobile #boost-btn { display: none !important; }
+}
+
+/* Keep toasts away from bottom controls on mobile */
+@media (pointer: coarse), (hover: none) {
+    #toast-container {
+        top: calc(env(safe-area-inset-top, 0px) + 72px);
+        bottom: auto !important;
+    }
+}

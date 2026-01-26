@@ -19,7 +19,11 @@ require_once __DIR__ . '/vendor/autoload.php';
 $webRoot = realpath(__DIR__ . '/Web');
 $webRoot = $webRoot === false ? __DIR__ . '/Web' : rtrim($webRoot, DIRECTORY_SEPARATOR);
 
-$web = new Worker('http://0.0.0.0:80');
+$configPath = __DIR__ . '/config.json';
+$config = file_exists($configPath) ? json_decode(file_get_contents($configPath), true) : array();
+$webPort = isset($config['web_port']) ? (int) $config['web_port'] : 8080;
+
+$web = new Worker('http://0.0.0.0:' . $webPort);
 
 $web->count = 1;
 

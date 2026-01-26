@@ -1,5 +1,6 @@
 {
-    "port": 8000,
+    "port": 8282,
+    "web_port": 8080,
     "debug_level": "info",
     "nb_players_per_world": 1000,
     "nb_worlds": 1,

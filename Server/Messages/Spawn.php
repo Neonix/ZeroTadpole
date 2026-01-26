@@ -23,12 +23,18 @@ class Spawn
     
     public function serialize()
     {
-        $output = array(
-            'type'     => 'spawn',
-            'id'       => 0,
+        return array(
+            TYPES_MESSAGES_SPAWN,
+            (int) $this->entity->id,
+            $this->entity->type,
+            $this->entity->kind,
+            (float) $this->entity->x,
+            (float) $this->entity->y,
+            (float) $this->entity->angle,
+            (float) $this->entity->momentum,
+            $this->entity->name,
+            $this->entity->color,
+            1,
         );
-
-        return $output;
     }
 }
-
